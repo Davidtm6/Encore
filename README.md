@@ -26,15 +26,22 @@ Friendships with shared reviews and comments, and personalized recommendations, 
 
 ## Current progress
 
-This repository holds early design and exploration work: the living document, a static UI mockup, and a draft Supabase migration. The Expo app (`app/`) and Encore API (`server/`) are not scaffolded yet.
+This repository holds early design and exploration work: the living document, a TypeScript prototype of the binary-insertion ranking algorithm, a static UI mockup, and a draft Supabase migration. GitHub Actions runs the Jest test suite on every pull request. The Expo app (`app/`) and Encore API (`server/`) are not scaffolded yet.
 
 ## Repository layout
 
 ```text
 README.md                         Project overview and entry point
+package.json                      Jest test scripts and dev dependencies
+jest.config.js                    Jest configuration (finds every *.test.ts file)
+.github/workflows/ci.yml          CI: runs all tests on pull requests and pushes to main
 docs/
   living-document.md              Requirements, process, architecture, design, and coding guidelines
   setup.md                        Local database setup instructions
+  testing.md                      Running tests, adding tests, and how CI works
+prototype/
+  ranking.ts                      TypeScript reference for binary insertion
+  ranking.test.ts                 Jest tests for the TypeScript reference
 ui-mockup/
   index.html                      Clickable UI mockup (open in a browser; sample data only)
 supabase/
@@ -43,6 +50,17 @@ supabase/
 ```
 
 The [UI mockup](ui-mockup/index.html) is a single self-contained page showing the My List, Feed, Rank, For You and Search screens, including the head-to-head ranking flow. See the [setup guide](docs/setup.md) for resource setup and limitations.
+
+## Run the tests
+
+With Node.js 24 or newer installed:
+
+```sh
+npm install
+npm test
+```
+
+See [testing](docs/testing.md) for running a single test, adding a new one, and how CI reports results.
 
 ## Contributing
 

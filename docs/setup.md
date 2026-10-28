@@ -31,7 +31,7 @@ The Expo app (`app/`) and Encore API (`server/`) are not scaffolded yet. Week 1 
 3. Configure Supabase email confirmation and the app's Auth redirect URLs.
 4. Load the 50-film sample catalog, then confirm TMDB terms and rate limits before switching search to the live provider.
 5. Implement the atomic ranking save, verified-email checks, and the 100-matchups-per-hour limit on the server.
-6. Set up GitHub Actions to run Jest on every pull request and Maestro before tester releases.
+6. Add Maestro to CI before tester releases. GitHub Actions already runs Jest on every pull request; see [testing](testing.md).
 7. Set up the Apple Developer and Google Play developer accounts, and run first EAS builds with a TestFlight upload and a Play internal-testing upload.
 
 Only the Supabase project URL and publishable key belong in app configuration. Keep the Supabase secret/service-role key and the TMDB key in server environment variables.

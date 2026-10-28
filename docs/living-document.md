@@ -271,7 +271,7 @@ The repository will have three top-level folders: `app/` (Expo app), `server/` (
 
 Maintain a best-to-worst list. To add a movie, compare it with the middle movie of the remaining interval. If the user prefers the new movie, search the better half; otherwise search the worse half. Insert when one position remains. For `n` ranked movies this takes at most `ceil(log2(n + 1))` comparisons: up to 4 for 12 movies and up to 7 for 100; an empty list needs none. Canceling leaves the stored ranking unchanged. Re-ranking removes the movie from its position and repeats insertion into the remaining list.
 
-The engine's Jest tests will check every insertion position for list sizes 0 through 128, the comparison bound, duplicate rejection, and that canceling leaves the list unchanged.
+The TypeScript reference in `prototype/ranking.ts` has Jest tests (`prototype/ranking.test.ts`) that check every insertion position for list sizes 0 through 128, the comparison bound, duplicate rejection, and that canceling leaves the list unchanged.
 
 ## 9. Coding guidelines
 
