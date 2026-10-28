@@ -26,18 +26,24 @@ Friendships with shared reviews and comments, and personalized recommendations, 
 
 ## Current progress
 
-This repository holds early design and exploration work: the living document, a Python prototype of the binary-insertion ranking algorithm, a static UI mockup, and a draft Supabase migration. The Expo app (`app/`) and Encore API (`server/`) are not scaffolded yet.
+This repository holds early design and exploration work: the living document, Python and TypeScript prototypes of the binary-insertion ranking algorithm, a static UI mockup, and a draft Supabase migration. GitHub Actions runs the Jest and Python test suites on every pull request. The Expo app (`app/`) and Encore API (`server/`) are not scaffolded yet.
 
 ## Repository layout
 
 ```text
 README.md                         Project overview and entry point
+package.json                      Jest test scripts and dev dependencies
+jest.config.js                    Jest configuration (finds every *.test.ts file)
+.github/workflows/ci.yml          CI: runs all tests on pull requests and pushes to main
 docs/
   living-document.md              Requirements, process, architecture, design, and coding guidelines
   setup.md                        Prototype and local database setup instructions
+  testing.md                      Running tests, adding tests, and how CI works
 prototype/
   ranking.py                      Interactive binary-insertion ranking experiment
   test_ranking.py                 Ranking correctness and comparison-count checks
+  ranking.ts                      TypeScript reference for binary insertion
+  ranking.test.ts                 Jest tests for the TypeScript reference
 ui-mockup/
   index.html                      Clickable UI mockup (open in a browser; sample data only)
 supabase/
@@ -57,6 +63,17 @@ python3 -m unittest discover -s prototype -v
 ```
 
 The prototype uses sample titles and runs in the terminal. It demonstrates ranking behavior without a movie API or database; rankings are kept in memory for the session. The app's ranking engine will be written in TypeScript.
+
+## Run the tests
+
+With Node.js 24 or newer installed:
+
+```sh
+npm install
+npm test
+```
+
+See [testing](docs/testing.md) for running a single test, adding a new one, and how CI reports results.
 
 ## Contributing
 
