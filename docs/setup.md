@@ -1,16 +1,5 @@
 # Development setup
 
-## Ranking experiment
-
-Install Python 3.10 or newer. From the repository root:
-
-```sh
-python3 prototype/ranking.py
-python3 -m unittest discover -s prototype -v
-```
-
-No packages, credentials, or network access are required. Choose the preferred film in each matchup. Enter `q` to cancel; canceling does not change the list. The list lasts only for the current session.
-
 ## Local Supabase resources
 
 Prerequisites: a running Docker-compatible container runtime and the [Supabase CLI](https://supabase.com/docs/guides/local-development/cli/getting-started). Follow the official installation instructions for your platform. With the global CLI installed, run from the repository root:

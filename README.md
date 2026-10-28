@@ -26,7 +26,7 @@ Friendships with shared reviews and comments, and personalized recommendations, 
 
 ## Current progress
 
-This repository holds early design and exploration work: the living document, Python and TypeScript prototypes of the binary-insertion ranking algorithm, a static UI mockup, and a draft Supabase migration. GitHub Actions runs the Jest and Python test suites on every pull request. The Expo app (`app/`) and Encore API (`server/`) are not scaffolded yet.
+This repository holds early design and exploration work: the living document, a TypeScript prototype of the binary-insertion ranking algorithm, a static UI mockup, and a draft Supabase migration. GitHub Actions runs the Jest test suite on every pull request. The Expo app (`app/`) and Encore API (`server/`) are not scaffolded yet.
 
 ## Repository layout
 
@@ -37,11 +37,9 @@ jest.config.js                    Jest configuration (finds every *.test.ts file
 .github/workflows/ci.yml          CI: runs all tests on pull requests and pushes to main
 docs/
   living-document.md              Requirements, process, architecture, design, and coding guidelines
-  setup.md                        Prototype and local database setup instructions
+  setup.md                        Local database setup instructions
   testing.md                      Running tests, adding tests, and how CI works
 prototype/
-  ranking.py                      Interactive binary-insertion ranking experiment
-  test_ranking.py                 Ranking correctness and comparison-count checks
   ranking.ts                      TypeScript reference for binary insertion
   ranking.test.ts                 Jest tests for the TypeScript reference
 ui-mockup/
@@ -52,17 +50,6 @@ supabase/
 ```
 
 The [UI mockup](ui-mockup/index.html) is a single self-contained page showing the My List, Feed, Rank, For You and Search screens, including the head-to-head ranking flow. See the [setup guide](docs/setup.md) for resource setup and limitations.
-
-## Try the ranking prototype
-
-With Python 3.10 or newer installed, run these commands from the repository root:
-
-```sh
-python3 prototype/ranking.py
-python3 -m unittest discover -s prototype -v
-```
-
-The prototype uses sample titles and runs in the terminal. It demonstrates ranking behavior without a movie API or database; rankings are kept in memory for the session. The app's ranking engine will be written in TypeScript.
 
 ## Run the tests
 

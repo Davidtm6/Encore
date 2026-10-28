@@ -1,5 +1,5 @@
 /**
- * TypeScript reference for Encore's binary insertion, mirroring ranking.py.
+ * TypeScript reference for Encore's binary insertion.
  * The app's ranking engine will build on this; it is not application code yet.
  */
 
