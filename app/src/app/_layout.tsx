@@ -55,6 +55,7 @@ function RootStack() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="rank/[movieId]" options={{ presentation: 'modal', title: 'Rank' }} />
         <Stack.Screen name="review/[movieId]" options={{ presentation: 'modal', title: 'Review' }} />
+        <Stack.Screen name="about" options={{ presentation: 'modal', title: 'About' }} />
       </Stack.Protected>
     </Stack>
   );

@@ -1,10 +1,10 @@
 const OFFLINE = /network request failed|failed to fetch/i;
 
+export const OFFLINE_MESSAGE = "Can't reach Encore. Check your connection and try again.";
+
 /** Builds a message for the person using the app from a Supabase error. */
 export function userError(error: { message: string }, fallback: string): Error {
-  return new Error(
-    OFFLINE.test(error.message) ? "Can't reach Encore. Check your connection and try again." : fallback,
-  );
+  return new Error(OFFLINE.test(error.message) ? OFFLINE_MESSAGE : fallback);
 }
 
 /** The message to show for anything a service throws. */

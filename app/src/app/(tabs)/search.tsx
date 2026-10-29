@@ -96,7 +96,15 @@ export default function SearchScreen() {
           keyExtractor={(movie) => String(movie.id)}
           renderItem={renderMovie}
           ItemSeparatorComponent={ListSeparator}
-          ListHeaderComponent={loading ? <ActivityIndicator style={styles.loading} /> : undefined}
+          ListHeaderComponent={
+            loading ? (
+              <ActivityIndicator style={styles.loading} />
+            ) : !query.trim() && results.length > 0 ? (
+              <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionTitle}>
+                Popular right now
+              </ThemedText>
+            ) : undefined
+          }
           ListEmptyComponent={
             loading || error ? undefined : (
               <ThemedText themeColor="textSecondary">No movies match “{query.trim()}”.</ThemedText>
@@ -122,6 +130,11 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     paddingHorizontal: Spacing.three,
     gap: Spacing.three,
+  },
+  sectionTitle: {
+    paddingBottom: Spacing.one,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
   },
   title: {
     paddingTop: Spacing.two,

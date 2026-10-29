@@ -32,7 +32,7 @@ No configuration is needed: `app/.env.development` already points at the team's 
 | --- | --- |
 | Run the app | Node.js 24, `npm run setup`, and Expo Go on your phone. |
 | Look at data, run SQL, or restore a paused project | The above, plus an invite to the Supabase organization. Ask Nathan. |
-| Change the database schema | The above, plus the database password (ask privately; never commit it) and a linked CLI; see [Changing the schema](#changing-the-schema). |
+| Change the database schema or the search function | The above, plus the database password (ask privately; never commit it) and a linked CLI; see [Changing the schema](#changing-the-schema) and [Movie search (TMDB)](#movie-search-tmdb). |
 
 ### 1. Install Node.js 24 and the dependencies
 
@@ -54,7 +54,7 @@ The team's dev project exists, so skip this unless you need a new one.
 
 1. Create a free project at <https://supabase.com/dashboard>, with **Enable Data API** on, the `public` schema, and automatic RLS on. Save the database password.
 2. In **Authentication → Sign In / Providers → Email**, turn off **Confirm email**. The first demo signs users in right after sign-up; email verification comes back before tester releases.
-3. Link the repository and apply the schema and sample films, from the repository root:
+3. Link the repository and apply the schema and starter films, from the repository root:
 
    ```sh
    npx supabase login
@@ -62,7 +62,7 @@ The team's dev project exists, so skip this unless you need a new one.
    npx supabase db push --include-seed
    ```
 
-   `db push` applies every file in `supabase/migrations/`. `--include-seed` also runs `supabase/seed.sql`, which adds 50 sample films and is safe to run again.
+   `db push` applies every file in `supabase/migrations/`. `--include-seed` also runs `supabase/seed.sql`, which adds 50 starter films and is safe to run again.
 
 ### 3. Start the app
 
@@ -100,6 +100,24 @@ Everyone's app talks to the same Supabase project:
 - **Accounts:** usernames are unique across the team, so each person signs up with their own.
 - **Pausing:** free projects pause after about a week without activity. Anyone in the organization can restore one from the dashboard; it takes a few minutes. Check the day before a demo.
 
+## Movie search (TMDB)
+
+Search calls the `search-movies` Edge Function in `supabase/functions/search-movies/`:
+- It asks TMDB for matching movies, or for popular movies when the search box is empty.
+- It saves each result into `movies`, so it can be marked watched, ranked, and reviewed.
+- It returns the results in TMDB's order.
+- If TMDB is unavailable, it searches the movies already saved instead.
+
+The TMDB token lives only in Supabase's secrets, never in the app or the repository. Teammates who only run the app need nothing for this. To set it up for a project (already done for the team project), from the repository root:
+
+1. Create a [TMDB](https://www.themoviedb.org) account. Under **Settings → API**, request a developer key for non-commercial use, and copy the **API Read Access Token**.
+2. Store it as a secret: `npx supabase secrets set TMDB_READ_ACCESS_TOKEN=<token>`.
+3. Deploy the function: `npx supabase functions deploy search-movies --use-api`. `--use-api` bundles on Supabase's servers, so Docker isn't needed.
+
+Deploy function changes only after their pull request merges, the same as migrations. To see errors, open the dashboard: **Edge Functions → search-movies → Logs**.
+
+TMDB's API is free for non-commercial use as long as the app credits it. The About screen (`app/src/app/about.tsx`) shows TMDB's logo and the notice "This product uses the TMDB API but is not endorsed or certified by TMDB"; keep both if you change that screen.
+
 ## Changing the schema
 
 Rules for the shared database:
@@ -135,7 +153,6 @@ npx supabase db reset
 
 The first demo leaves these for later increments:
 - The Encore API (`server/`): the app calls Supabase directly, and RLS policies plus `save_ranking` enforce ownership.
-- Live TMDB search.
 - Required email verification.
 - The 100-matchups-per-hour limit.
 - The review content filter.

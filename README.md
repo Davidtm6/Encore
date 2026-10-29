@@ -21,21 +21,21 @@ Friendships with shared reviews and comments, and personalized recommendations, 
 | Ranking engine | TypeScript, runs in the app and is re-checked on the server |
 | Encore API | Node.js + TypeScript |
 | Auth and database | Supabase Auth and Postgres with row-level security |
-| Movie data | TMDB, with a seeded sample catalog for testing |
+| Movie data | TMDB, through a Supabase Edge Function that saves results to the database; a 50-film starter catalog for fresh databases |
 | CI | GitHub Actions running Jest (with React Native Testing Library) and Maestro |
 
 ## Current progress
 
 The first demo covers all four MVP features in the Expo app (`app/`):
 - **Accounts:** sign up, sign in, and sign out; the session survives restarts.
-- **Search:** find a film in a 50-film sample catalog and mark it watched.
+- **Search:** search TMDB (with posters), or browse what's popular, and mark a film watched.
 - **Ranking:** rank and re-rank through head-to-head comparisons, with cancel.
 - **Reviews:** write and edit one review per film.
 
 The app talks to a Supabase development project directly. RLS policies and the `save_ranking` database function enforce that people can only change their own data. Rankings save atomically.
 
 Deferred to later increments:
-- The Encore API (`server/`) and live TMDB search.
+- The Encore API (`server/`).
 - Required email verification and rate limits.
 - EAS, TestFlight, and Google Play builds.
 
@@ -67,7 +67,7 @@ jest.config.js                    Jest configuration (finds every *.test.ts file
 .github/workflows/ci.yml          CI: tests, app typecheck and lint on pull requests and pushes to main
 app/                              Expo app (own package.json)
   .env.development                The team dev project's URL and publishable key (override in .env.local)
-  src/app/                        Screens (Expo Router): sign-in, My List and Search tabs, Rank and Review modals
+  src/app/                        Screens (Expo Router): sign-in, My List and Search tabs, Rank, Review, and About modals
   src/components/                 Shared display components (MovieCard, ComparisonPair, ErrorBanner, ...)
   src/hooks/                      One hook per screen; holds state, loading, errors, and retries
   src/services/                   Typed Supabase calls (auth, movies, watched list, reviews, rankings)
@@ -89,7 +89,9 @@ supabase/
   migrations/
     20261014000000_initial.sql    Core tables and access policies
     20261028000000_mvp_ranking.sql  Profile on sign-up, default owners, atomic save_ranking function
-  seed.sql                        50 sample films
+    20261029000000_sample_films_to_tmdb.sql  Relabels the starter films with their TMDB IDs
+  functions/search-movies/        Edge Function: TMDB search that saves results; mapping in tmdb.ts (Jest-tested)
+  seed.sql                        50 starter films with TMDB IDs
   demo/demo-account.sql           Fills a demo account with a ranked list and a review
 ```
 

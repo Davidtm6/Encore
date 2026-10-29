@@ -149,6 +149,8 @@ Weekly planning and demos, a midweek check-in, and one review per PR. No stretch
 
 **Changes since the requirements document.** That document listed one risk: whether ranking stays consistent for a user with 12 movies versus 100+. We lowered it, because binary insertion works the same way at any list size; only the number of comparisons grows, which risk 2 now covers. Risks 1, 3, 4, and 5 are new, and risk 5 comes from switching to a mobile app.
 
+**Status of risk 1.** Resolved for the first demo. Search uses TMDB through the `search-movies` Edge Function, with the token kept in Supabase secrets. The About screen shows the attribution TMDB's non-commercial terms require. The CI provider check is not built yet.
+
 **External feedback.** Weeks 2, 6, and 8 with 3, 5, and 5 outside users. Measure against the 4-of-5-in-3-minutes target and file the top findings as issues.
 
 ### Schedule
@@ -271,7 +273,7 @@ The repository will have three top-level folders: `app/` (Expo app), `server/` (
 - **Hooks (`app/hooks`):** one per screen (`useSession`, `useMovieSearch`, `useMyMovies`, `useRanking`, `useReview`). Each holds the screen's state, calls services, and handles loading, errors, and retries.
 - **Services (`app/services`):** one typed client per backend resource (`authService`, `movieService`, `watchedService`, `reviewService`, `rankingApi`), sharing types generated from the database schema.
 - **Ranking service (`server/src`):** decides where each movie goes in a user's list. It first checks who is making the request and that the request makes sense. `RankingService` runs the comparison exchange and saves the final position; `RankingSession` picks the next pair and where the new movie belongs; `RankingRepository` reads and saves rankings.
-- **Supabase (`supabase/`):** migrations create the tables and the rules for who can see what. A `searchMovies` function looks up movies on TMDB for the app and caches the results.
+- **Supabase (`supabase/`):** migrations create the tables and the rules for who can see what. The `search-movies` Edge Function (`supabase/functions/search-movies`) looks up movies on TMDB for the app and saves them to `movies`. If TMDB fails, it searches the movies already saved.
 
 ### Ranking algorithm
 
@@ -300,4 +302,4 @@ These are places where the team document disagrees with itself or leaves a choic
   - UC2 (find a movie) lists Pavan, but Lucas owns search and builds UC2 in week 2.
   - UC3 (rank) lists Lucas, but Pavan owns ranking and builds UC3 in week 3.
   - UC4 (re-rank) lists Nathan, but the schedule gives it to Lucas in week 4.
-- **When the Encore API comes back.** The first demo calls Supabase directly (see 7.5). Decide whether the API is still needed for the MVP or only for the server-side ranking re-check, TMDB, and rate limits.
+- **When the Encore API comes back.** The first demo calls Supabase directly (see 7.5). Decide whether the API is still needed for the MVP or only for the server-side ranking re-check and rate limits. TMDB search already runs in a Supabase Edge Function.

@@ -38,6 +38,7 @@ npm run lint
 | Suite | Covers |
 | --- | --- |
 | `app/src/ranking/ranking-session.test.ts` | The ranking engine used by the Rank screen: first movie, every insertion position for lists of 0–128 films within `ceil(log2(n + 1))` comparisons, cancel leaving the list unchanged, and re-rank keeping other movies in order |
+| `supabase/functions/search-movies/tmdb.test.ts` | How TMDB results become `movies` rows: year and poster parsing, dropping adult, untitled, and repeated results while keeping TMDB's order, and escaping search wildcards |
 | `prototype/ranking.test.ts` and `prototype/test_ranking.py` | The reference binary-insertion prototypes |
 
 Screens and the database are checked by hand for the first demo, following the demo script in [setup](setup.md#demo-script). To check `save_ranking` and the access policies in the dashboard SQL editor, sign up two test accounts and confirm three things:

@@ -3,7 +3,8 @@ import { useEffect, useState } from 'react';
 import { messageOf } from '@/services/errors';
 import { searchMovies, type Movie } from '@/services/movie-service';
 
-const DEBOUNCE_MS = 300;
+// Each search calls TMDB, so wait for a short pause in typing.
+const DEBOUNCE_MS = 400;
 
 export function useMovieSearch() {
   const [query, setQuery] = useState('');
