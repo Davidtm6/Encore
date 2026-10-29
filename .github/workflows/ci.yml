@@ -47,6 +47,43 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
 
+  # Migrations, seed, demo script, and access rules on a throwaway Postgres.
+  database:
+    name: Database (migrations and access rules)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: postgres
+    steps:
+      - uses: actions/checkout@v5
+      - run: bash supabase/tests/run-database-tests.sh
+
+  edge-function:
+    name: Edge Function (type check)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+      - run: npm run check:functions
+
   python-prototype:
     name: Python prototype
     runs-on: ubuntu-latest

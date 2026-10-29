@@ -102,21 +102,13 @@ Everyone's app talks to the same Supabase project:
 
 ## Movie search (TMDB)
 
-Search calls the `search-movies` Edge Function in `supabase/functions/search-movies/`:
-- It asks TMDB for matching movies, or for popular movies when the search box is empty.
-- It saves each result into `movies`, so it can be marked watched, ranked, and reviewed.
-- It returns the results in TMDB's order.
-- If TMDB is unavailable, it searches the movies already saved instead.
-
-The TMDB token lives only in Supabase's secrets, never in the app or the repository. Teammates who only run the app need nothing for this. To set it up for a project (already done for the team project), from the repository root:
+Search calls the `search-movies` Edge Function, which asks TMDB and saves the results into `movies`. Teammates who only run the app need nothing for it; the team project's TMDB token is already in Supabase's secrets. To set it up for a new project, from the repository root:
 
 1. Create a [TMDB](https://www.themoviedb.org) account. Under **Settings → API**, request a developer key for non-commercial use, and copy the **API Read Access Token**.
-2. Store it as a secret: `npx supabase secrets set TMDB_READ_ACCESS_TOKEN=<token>`.
-3. Deploy the function: `npx supabase functions deploy search-movies --use-api`. `--use-api` bundles on Supabase's servers, so Docker isn't needed.
+2. Store it as the `TMDB_READ_ACCESS_TOKEN` secret, following [Running it](movie-search.md#running-it).
+3. Deploy the function: `npx supabase functions deploy search-movies --use-api`.
 
-Deploy function changes only after their pull request merges, the same as migrations. To see errors, open the dashboard: **Edge Functions → search-movies → Logs**.
-
-TMDB's API is free for non-commercial use as long as the app credits it. The About screen (`app/src/app/about.tsx`) shows TMDB's logo and the notice "This product uses the TMDB API but is not endorsed or certified by TMDB"; keep both if you change that screen.
+[Movie search](movie-search.md) explains how it works, its failure modes, TMDB's terms, and troubleshooting.
 
 ## Changing the schema
 

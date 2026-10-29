@@ -1,4 +1,4 @@
-import { escapeLike, POSTER_BASE_URL, toMovieRows } from './tmdb';
+import { escapeLike, POSTER_BASE_URL, toMovieRows } from './tmdb.ts';
 
 describe('toMovieRows', () => {
   it('maps a TMDB result to a movies row', () => {

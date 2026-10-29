@@ -183,6 +183,7 @@ Tasks are one person-week each unless noted; dependencies follow the semicolon.
 Every MVP use case (UC1–5), including its exceptions, and every non-functional requirement maps to at least one suite below.
 
 - **Unit tests (Jest):** the ranking engine (insertion, cancel, first movie, no duplicates) and input validation. Run on every PR; a failing test blocks the merge.
+- **Database tests (psql against Postgres in CI):** migrations, the seed and demo script, `save_ranking`, and row-level security, including a second account trying to read and change the first one's data. Run on every PR; see `docs/testing.md`.
 - **System tests (Maestro on the iOS Simulator and Android emulator), run before each tester release:**
   - Use cases: one happy-path and one exception test per use case.
   - Security: a second account tries to access the first account's data.

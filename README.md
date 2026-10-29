@@ -39,7 +39,7 @@ Deferred to later increments:
 - Required email verification and rate limits.
 - EAS, TestFlight, and Google Play builds.
 
-GitHub Actions runs the Jest and Python tests and type-checks and lints the app on every pull request.
+GitHub Actions runs the Jest, database, and Python tests, type-checks the Edge Function, and type-checks and lints the app on every pull request.
 
 ## Run the app
 
@@ -76,6 +76,7 @@ app/                              Expo app (own package.json)
 docs/
   living-document.md              Requirements, process, architecture, design, and coding guidelines
   setup.md                        Running the app, Supabase setup, demo account, and schema changes
+  movie-search.md                 How TMDB search works, running and changing it, and troubleshooting
   testing.md                      Running tests, adding tests, and how CI works
 prototype/
   ranking.py                      Interactive binary-insertion ranking experiment
@@ -90,9 +91,10 @@ supabase/
     20261014000000_initial.sql    Core tables and access policies
     20261028000000_mvp_ranking.sql  Profile on sign-up, default owners, atomic save_ranking function
     20261029000000_sample_films_to_tmdb.sql  Relabels the starter films with their TMDB IDs
-  functions/search-movies/        Edge Function: TMDB search that saves results; mapping in tmdb.ts (Jest-tested)
+  functions/search-movies/        Edge Function: TMDB search that saves results (logic in search.ts and tmdb.ts, Jest-tested)
   seed.sql                        50 starter films with TMDB IDs
   demo/demo-account.sql           Fills a demo account with a ranked list and a review
+  tests/                          Starter-catalog consistency test (Jest) and database tests (run-database-tests.sh)
 ```
 
 The [UI mockup](ui-mockup/index.html) is a single self-contained page showing the My List, Feed, Rank, For You and Search screens, including the head-to-head ranking flow. The app builds the MVP parts of it: My List, Search, and Rank.
@@ -110,14 +112,15 @@ The prototype uses sample titles and runs in the terminal. It demonstrates ranki
 
 ## Run the tests
 
-With Node.js 24 installed (see `.nvmrc`):
+With Node.js 24 installed (see `.nvmrc`), after `npm run setup`:
 
 ```sh
-npm install
-npm test
+npm test                  # Jest unit tests
+npm run test:db           # database tests (needs a local Postgres)
+npm run check:functions   # type-check the Edge Function
 ```
 
-See [testing](docs/testing.md) for running a single test, adding a new one, and how CI reports results.
+See [testing](docs/testing.md) for setting up Postgres for the database tests, running a single test, adding a new one, and how CI reports results.
 
 ## Contributing
 
