@@ -26,18 +26,50 @@ Friendships with shared reviews and comments, and personalized recommendations, 
 
 ## Current progress
 
-This repository holds early design and exploration work: the living document, Python and TypeScript prototypes of the binary-insertion ranking algorithm, a static UI mockup, and a draft Supabase migration. GitHub Actions runs the Jest and Python test suites on every pull request. The Expo app (`app/`) and Encore API (`server/`) are not scaffolded yet.
+The first demo covers all four MVP features in the Expo app (`app/`):
+- **Accounts:** sign up, sign in, and sign out; the session survives restarts.
+- **Search:** find a film in a 50-film sample catalog and mark it watched.
+- **Ranking:** rank and re-rank through head-to-head comparisons, with cancel.
+- **Reviews:** write and edit one review per film.
+
+The app talks to a Supabase development project directly. RLS policies and the `save_ranking` database function enforce that people can only change their own data. Rankings save atomically.
+
+Deferred to later increments:
+- The Encore API (`server/`) and live TMDB search.
+- Required email verification and rate limits.
+- EAS, TestFlight, and Google Play builds.
+
+GitHub Actions runs the Jest and Python tests and type-checks and lints the app on every pull request.
+
+## Run the app
+
+Follow the [setup guide](docs/setup.md#run-the-app). For a teammate, the team's Supabase project already exists, so it's:
+1. Use Node.js 24.
+2. Run `npm install` in the repository root and in `app/`.
+3. Copy `app/.env.example` to `app/.env` and fill in the URL and publishable key from the team doc.
+4. Run `npm start` in `app/`, or `npm run start:tunnel` on campus Wi-Fi.
+5. Open the app in Expo Go.
+
+The guide also covers creating a new Supabase project, the demo account and script, and the rules for changing the shared schema.
 
 ## Repository layout
 
 ```text
 README.md                         Project overview and entry point
-package.json                      Jest test scripts and dev dependencies
+package.json                      Jest test scripts and dev dependencies (including the Supabase CLI)
 jest.config.js                    Jest configuration (finds every *.test.ts file)
-.github/workflows/ci.yml          CI: runs all tests on pull requests and pushes to main
+.github/workflows/ci.yml          CI: tests, app typecheck and lint on pull requests and pushes to main
+app/                              Expo app (own package.json; run npm commands from here)
+  .env.example                    Supabase URL and publishable key to copy into app/.env
+  src/app/                        Screens (Expo Router): sign-in, My List and Search tabs, Rank and Review modals
+  src/components/                 Shared display components (MovieCard, ComparisonPair, ErrorBanner, ...)
+  src/hooks/                      One hook per screen; holds state, loading, errors, and retries
+  src/services/                   Typed Supabase calls (auth, movies, watched list, reviews, rankings)
+  src/ranking/                    Step-by-step binary-insertion engine and its Jest tests
+  src/types/database.ts           Database types generated from the schema
 docs/
   living-document.md              Requirements, process, architecture, design, and coding guidelines
-  setup.md                        Prototype and local database setup instructions
+  setup.md                        Running the app, Supabase setup, demo account, and schema changes
   testing.md                      Running tests, adding tests, and how CI works
 prototype/
   ranking.py                      Interactive binary-insertion ranking experiment
@@ -47,11 +79,15 @@ prototype/
 ui-mockup/
   index.html                      Clickable UI mockup (open in a browser; sample data only)
 supabase/
+  config.toml                     Supabase CLI configuration
   migrations/
-    20261014000000_initial.sql    Draft core tables and access policies
+    20261014000000_initial.sql    Core tables and access policies
+    20261028000000_mvp_ranking.sql  Profile on sign-up, default owners, atomic save_ranking function
+  seed.sql                        50 sample films
+  demo/demo-account.sql           Fills a demo account with a ranked list and a review
 ```
 
-The [UI mockup](ui-mockup/index.html) is a single self-contained page showing the My List, Feed, Rank, For You and Search screens, including the head-to-head ranking flow. See the [setup guide](docs/setup.md) for resource setup and limitations.
+The [UI mockup](ui-mockup/index.html) is a single self-contained page showing the My List, Feed, Rank, For You and Search screens, including the head-to-head ranking flow. The app builds the MVP parts of it: My List, Search, and Rank.
 
 ## Try the ranking prototype
 
@@ -66,7 +102,7 @@ The prototype uses sample titles and runs in the terminal. It demonstrates ranki
 
 ## Run the tests
 
-With Node.js 24 or newer installed:
+With Node.js 24 installed (see `.nvmrc`):
 
 ```sh
 npm install

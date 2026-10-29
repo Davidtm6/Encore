@@ -243,7 +243,12 @@ All data is stored in Supabase.
 | `reviews` | Review text and timestamps; one per user/movie pair |
 | `rankings` | A record of each saved ranking |
 
-The draft migration in `supabase/migrations/` implements `profiles`, `movies`, `watched_movies` (which currently also holds each movie's rank position), and `reviews`. Genre, display name, a separate rankings table, matchup rate limits, and the atomic save function are not in it yet.
+The migrations in `supabase/migrations/` implement:
+- the tables `profiles`, `movies`, `watched_movies` (which also holds each movie's rank position), and `reviews`;
+- a trigger that creates a profile at sign-up;
+- `save_ranking`, the atomic save, which rewrites a user's whole order in one statement after checking it against the saved list.
+
+Genre, display name, a separate rankings table, and matchup rate limits are not in them yet.
 
 ### 7.4 Assumptions
 
@@ -256,10 +261,11 @@ The draft migration in `supabase/migrations/` implements `profiles`, `movies`, `
 
 - Build our own API and backend instead of calling Supabase directly from the app.
 - Run the ranking engine in the app for instant feedback, and re-check results on the server before saving.
+- **First demo (deferral):** until the Encore API exists, the app calls Supabase directly. RLS on every table and the `save_ranking` database function are the security boundary. `save_ranking` checks that an order is complete and contains only the caller's watched movies, but doesn't replay comparisons. When the API is built, only `app/src/services` changes.
 
 ## 8. Software design
 
-The repository will have three top-level folders: `app/` (Expo app), `server/` (Encore API and ranking), and `supabase/` (database and movie search). In the app, screens call hooks and hooks call services. There is one screen per use case area: sign in and sign up, my movies, and reviews.
+The repository will have three top-level folders: `app/` (Expo app), `server/` (Encore API and ranking), and `supabase/` (database and movie search); `server/` does not exist yet. In the app, screens call hooks and hooks call services. There is one screen per use case area: sign in and sign up, my movies, search, ranking, and reviews. Following the Expo template, app code lives under `app/src/`. Routes are in `app/src/app/`, and the folders below are `app/src/components`, `app/src/hooks`, and `app/src/services`. The ranking engine is in `app/src/ranking`.
 
 - **Components (`app/components`):** a few shared display components (`MovieCard`, `ComparisonPair`, `RankedList`, `ErrorBanner`) that render data and collect input.
 - **Hooks (`app/hooks`):** one per screen (`useSession`, `useMovieSearch`, `useMyMovies`, `useRanking`, `useReview`). Each holds the screen's state, calls services, and handles loading, errors, and retries.
@@ -290,3 +296,8 @@ These are places where the team document disagrees with itself or leaves a choic
 - **Web leftovers.** The team document's accessibility and public-access requirements (sections 4 and 5) still mention keyboard use and deploying a web app. This file rewrites them for mobile (VoiceOver and TalkBack, TestFlight and Google Play).
 - **iOS-only wording.** The team document says iOS throughout (TestFlight, VoiceOver, iOS Simulator). This file says iOS and Android, since Expo builds both; the team document should be updated to match, and the team needs a Google Play developer account and an Android test device.
 - **Public versus friends-only reviews.** The draft migration lets any signed-in user read reviews; decide before the social stretch goals.
+- **Use-case owners.** Section 3's owners don't match the schedule or the roles:
+  - UC2 (find a movie) lists Pavan, but Lucas owns search and builds UC2 in week 2.
+  - UC3 (rank) lists Lucas, but Pavan owns ranking and builds UC3 in week 3.
+  - UC4 (re-rank) lists Nathan, but the schedule gives it to Lucas in week 4.
+- **When the Encore API comes back.** The first demo calls Supabase directly (see 7.5). Decide whether the API is still needed for the MVP or only for the server-side ranking re-check, TMDB, and rate limits.
