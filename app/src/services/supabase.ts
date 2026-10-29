@@ -11,7 +11,8 @@ const publishableKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
 if (!url || !publishableKey) {
   throw new Error(
-    'Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY in app/.env (see docs/setup.md).',
+    'EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY are missing. They come from ' +
+      'app/.env.development; restart with `npx expo start -c`, or see docs/setup.md.',
   );
 }
 

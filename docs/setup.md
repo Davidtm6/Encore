@@ -15,29 +15,36 @@ No packages, credentials, or network access are required. Choose the preferred f
 
 The app is an Expo project in `app/` that talks to the team's shared Supabase development project. There is no Encore API yet; see [Not set up yet](#not-set-up-yet).
 
+### Quick start
+
+With Node.js installed, from the repository root:
+
+```sh
+npm run setup   # checks your Node version and installs everything
+npm start       # starts the app; scan the QR code with Expo Go
+```
+
+No configuration is needed: `app/.env.development` already points at the team's Supabase project. The rest of this section explains each step and what to do when something goes wrong.
+
 ### Who needs what
 
 | You want to | You need |
 | --- | --- |
-| Run the app | Node.js 24, `npm install`, the project URL and publishable key in `app/.env`, and Expo Go on your phone. Follow steps 1, 3, and 4. Step 2 is already done. |
-| Look at data, run SQL, or restore a paused project | Steps above, plus an invite to the Supabase organization. Ask Nathan. |
-| Change the database schema | Steps above, plus the database password (ask privately; never commit it) and a linked CLI; see [Changing the schema](#changing-the-schema). |
+| Run the app | Node.js 24, `npm run setup`, and Expo Go on your phone. |
+| Look at data, run SQL, or restore a paused project | The above, plus an invite to the Supabase organization. Ask Nathan. |
+| Change the database schema | The above, plus the database password (ask privately; never commit it) and a linked CLI; see [Changing the schema](#changing-the-schema). |
 
 ### 1. Install Node.js 24 and the dependencies
 
-Use Node.js 24, the version in `.nvmrc` and CI. React Native 0.88 does not officially support Node 25, and `npm install` warns if your version is outside the supported range.
+Use Node.js 24, the version in `.nvmrc` and CI. `npm run setup` stops on Node versions older than 22. On versions React Native doesn't officially support, such as 25, it warns and continues.
 
 - **macOS with Homebrew:** `brew install node@24`, then add `export PATH="/opt/homebrew/opt/node@24/bin:$PATH"` to `~/.zshrc` and open a new terminal.
 - **nvm or fnm (macOS or Linux):** run `nvm use` or `fnm use` from the repository root; both read `.nvmrc`.
 - **Windows:** install [nvm-windows](https://github.com/coreybutler/nvm-windows), then run `nvm install 24` and `nvm use 24`.
 
-Check with `node -v` (it should print `v24.…`). Then, from the repository root:
+Check with `node -v` (it should print `v24.…`). Then run `npm run setup` from the repository root. It runs `npm install` in the root (Jest and the Supabase CLI) and in `app/`.
 
-```sh
-npm install          # Jest and the Supabase CLI
-cd app
-npm install
-```
+npm 11 may say that install scripts for `unrs-resolver` or `@parcel/watcher` aren't approved. That's expected. Those scripts are optional fallbacks, and nothing in the project needs them.
 
 Install [Expo Go](https://expo.dev/go) on your phone and keep it updated; the app needs the version for Expo SDK 58. You can use the Android emulator instead, or the iOS Simulator (macOS with Xcode only).
 
@@ -57,20 +64,24 @@ The team's dev project exists, so skip this unless you need a new one.
 
    `db push` applies every file in `supabase/migrations/`. `--include-seed` also runs `supabase/seed.sql`, which adds 50 sample films and is safe to run again.
 
-### 3. Configure and start the app
+### 3. Start the app
 
-From `app/`, copy the example environment file (`cp .env.example .env` on macOS or Linux, `copy .env.example .env` on Windows). Fill in two values: `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. Get them from the team's shared doc, or from **Project Settings → API Keys** if you're in the Supabase organization. Only the URL and the publishable key (`sb_publishable_…`) belong in the app; never put the secret key in `app/.env`. The repository is public, so `app/.env` is gitignored and the values are shared outside git.
+`app/.env.development` holds the team project's URL and publishable key, and Expo loads it automatically. It's committed on purpose. The publishable key is meant to ship inside the app, and row-level security limits every user to their own data. Never put the secret key in any `app/.env` file. To point your copy at a different project, such as a local Supabase stack, put the same two keys in `app/.env.local`. It overrides `.env.development` and stays out of git.
+
+From the repository root:
 
 ```sh
-npm start              # same Wi-Fi as your phone
-npm run start:tunnel   # campus Wi-Fi (eduroam) or any network that blocks phone-to-laptop traffic
+npm start           # tunnel: works on any network, including eduroam
+npm run start:lan   # faster reloads when your phone and laptop share a home Wi-Fi
 ```
 
-Open the app on your phone:
+Inside `app/`, `npm start` is the LAN mode and `npm run start:tunnel` is the tunnel. Open the app on your phone:
 - **iPhone:** scan the QR code with the Camera app, then tap **Open in Expo Go**.
 - **Android:** scan the QR code from inside Expo Go. The system camera says "no usable data found".
 
-You can also press `i` (iOS Simulator) or `a` (Android emulator). The first tunnel run asks to install `@expo/ngrok`; say yes. If the app shows a red screen about `EXPO_PUBLIC_SUPABASE_URL`, `app/.env` is missing or wasn't picked up; restart with `npx expo start -c`.
+You can also press `i` (iOS Simulator) or `a` (Android emulator). Troubleshooting:
+- **The app shows a red screen about `EXPO_PUBLIC_SUPABASE_URL`:** restart with `npx expo start -c` in `app/` to clear the cache.
+- **The tunnel won't connect:** try `npm run start:lan` on a home network.
 
 ### 4. Prepare a demo account
 
@@ -118,7 +129,7 @@ npx supabase start
 npx supabase db reset
 ```
 
-`db reset` recreates the **local** database, applies the migrations, and runs `seed.sql`. It deletes local development data. Do not add remote-target flags to it. Point `app/.env` at the local API URL and publishable key that `start` prints. Stop the stack with `npx supabase stop`.
+`db reset` recreates the **local** database, applies the migrations, and runs `seed.sql`. It deletes local development data. Do not add remote-target flags to it. To use the local stack, put the API URL and publishable key that `start` prints into `app/.env.local`; delete that file to go back to the shared project. Stop the stack with `npx supabase stop`.
 
 ## Not set up yet
 
