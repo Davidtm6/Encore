@@ -32,7 +32,7 @@ No configuration is needed: `app/.env.development` already points at the team's 
 | --- | --- |
 | Run the app | Node.js 24, `npm run setup`, and Expo Go on your phone. |
 | Look at data, run SQL, or restore a paused project | The above, plus an invite to the Supabase organization. Ask Nathan. |
-| Change the database schema | The above, plus the database password (ask privately; never commit it) and a linked CLI; see [Changing the schema](#changing-the-schema). |
+| Change the database schema or the search function | The above, plus the database password (ask privately; never commit it) and a linked CLI; see [Changing the schema](#changing-the-schema) and [Movie search (TMDB)](#movie-search-tmdb). |
 
 ### 1. Install Node.js 24 and the dependencies
 
@@ -54,7 +54,7 @@ The team's dev project exists, so skip this unless you need a new one.
 
 1. Create a free project at <https://supabase.com/dashboard>, with **Enable Data API** on, the `public` schema, and automatic RLS on. Save the database password.
 2. In **Authentication → Sign In / Providers → Email**, turn off **Confirm email**. The first demo signs users in right after sign-up; email verification comes back before tester releases.
-3. Link the repository and apply the schema and sample films, from the repository root:
+3. Link the repository and apply the schema and starter films, from the repository root:
 
    ```sh
    npx supabase login
@@ -62,7 +62,7 @@ The team's dev project exists, so skip this unless you need a new one.
    npx supabase db push --include-seed
    ```
 
-   `db push` applies every file in `supabase/migrations/`. `--include-seed` also runs `supabase/seed.sql`, which adds 50 sample films and is safe to run again.
+   `db push` applies every file in `supabase/migrations/`. `--include-seed` also runs `supabase/seed.sql`, which adds 50 starter films and is safe to run again.
 
 ### 3. Start the app
 
@@ -100,6 +100,16 @@ Everyone's app talks to the same Supabase project:
 - **Accounts:** usernames are unique across the team, so each person signs up with their own.
 - **Pausing:** free projects pause after about a week without activity. Anyone in the organization can restore one from the dashboard; it takes a few minutes. Check the day before a demo.
 
+## Movie search (TMDB)
+
+Search calls the `search-movies` Edge Function, which asks TMDB and saves the results into `movies`. Teammates who only run the app need nothing for it; the team project's TMDB token is already in Supabase's secrets. To set it up for a new project, from the repository root:
+
+1. Create a [TMDB](https://www.themoviedb.org) account. Under **Settings → API**, request a developer key for non-commercial use, and copy the **API Read Access Token**.
+2. Store it as the `TMDB_READ_ACCESS_TOKEN` secret, following [Running it](movie-search.md#running-it).
+3. Deploy the function: `npx supabase functions deploy search-movies --use-api`.
+
+[Movie search](movie-search.md) explains how it works, its failure modes, TMDB's terms, and troubleshooting.
+
 ## Changing the schema
 
 Rules for the shared database:
@@ -135,7 +145,6 @@ npx supabase db reset
 
 The first demo leaves these for later increments:
 - The Encore API (`server/`): the app calls Supabase directly, and RLS policies plus `save_ranking` enforce ownership.
-- Live TMDB search.
 - Required email verification.
 - The 100-matchups-per-hour limit.
 - The review content filter.

@@ -1,4 +1,5 @@
 import { userError } from '@/services/errors';
+import { searchErrorMessage } from '@/services/search-error';
 import { supabase } from '@/services/supabase';
 import type { Tables } from '@/types/database';
 
@@ -6,16 +7,18 @@ export type Movie = Pick<Tables<'movies'>, 'id' | 'title' | 'release_year' | 'po
 
 export const MOVIE_FIELDS = 'id, title, release_year, poster_url';
 
-/** Title search over the catalog. An empty query lists the first films alphabetically. */
+/**
+ * Searches TMDB through the search-movies Edge Function, which saves the results
+ * so they can be marked watched. An empty query returns TMDB's popular movies.
+ */
 export async function searchMovies(query: string): Promise<Movie[]> {
-  const text = query.trim();
-  const all = supabase.from('movies').select(MOVIE_FIELDS);
-  const matching = text ? all.ilike('title', `%${escapeLike(text)}%`) : all;
-  const { data, error } = await matching.order('title').limit(25);
+  const { data, error } = await supabase.functions.invoke<{ movies: Movie[] }>('search-movies', {
+    body: { query: query.trim() },
+  });
   if (error) {
-    throw userError(error, 'Search isn’t available right now. Try again.');
+    throw new Error(await searchErrorMessage(error));
   }
-  return data;
+  return data?.movies ?? [];
 }
 
 export async function getMovie(movieId: number): Promise<Movie> {
@@ -24,8 +27,4 @@ export async function getMovie(movieId: number): Promise<Movie> {
     throw userError(error, 'That movie couldn’t be loaded. Try again.');
   }
   return data;
-}
-
-function escapeLike(text: string): string {
-  return text.replace(/[\\%_]/g, (char) => `\\${char}`);
 }

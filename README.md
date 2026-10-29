@@ -21,25 +21,25 @@ Friendships with shared reviews and comments, and personalized recommendations, 
 | Ranking engine | TypeScript, runs in the app and is re-checked on the server |
 | Encore API | Node.js + TypeScript |
 | Auth and database | Supabase Auth and Postgres with row-level security |
-| Movie data | TMDB, with a seeded sample catalog for testing |
+| Movie data | TMDB, through a Supabase Edge Function that saves results to the database; a 50-film starter catalog for fresh databases |
 | CI | GitHub Actions running Jest (with React Native Testing Library) and Maestro |
 
 ## Current progress
 
 The first demo covers all four MVP features in the Expo app (`app/`):
 - **Accounts:** sign up, sign in, and sign out; the session survives restarts.
-- **Search:** find a film in a 50-film sample catalog and mark it watched.
+- **Search:** search TMDB (with posters), or browse what's popular, and mark a film watched.
 - **Ranking:** rank and re-rank through head-to-head comparisons, with cancel.
 - **Reviews:** write and edit one review per film.
 
 The app talks to a Supabase development project directly. RLS policies and the `save_ranking` database function enforce that people can only change their own data. Rankings save atomically.
 
 Deferred to later increments:
-- The Encore API (`server/`) and live TMDB search.
+- The Encore API (`server/`).
 - Required email verification and rate limits.
 - EAS, TestFlight, and Google Play builds.
 
-GitHub Actions runs the Jest and Python tests and type-checks and lints the app on every pull request.
+GitHub Actions runs the Jest, database, and Python tests, type-checks the Edge Function, and type-checks and lints the app on every pull request.
 
 ## Run the app
 
@@ -67,7 +67,7 @@ jest.config.js                    Jest configuration (finds every *.test.ts file
 .github/workflows/ci.yml          CI: tests, app typecheck and lint on pull requests and pushes to main
 app/                              Expo app (own package.json)
   .env.development                The team dev project's URL and publishable key (override in .env.local)
-  src/app/                        Screens (Expo Router): sign-in, My List and Search tabs, Rank and Review modals
+  src/app/                        Screens (Expo Router): sign-in, My List and Search tabs, Rank, Review, and About modals
   src/components/                 Shared display components (MovieCard, ComparisonPair, ErrorBanner, ...)
   src/hooks/                      One hook per screen; holds state, loading, errors, and retries
   src/services/                   Typed Supabase calls (auth, movies, watched list, reviews, rankings)
@@ -76,6 +76,7 @@ app/                              Expo app (own package.json)
 docs/
   living-document.md              Requirements, process, architecture, design, and coding guidelines
   setup.md                        Running the app, Supabase setup, demo account, and schema changes
+  movie-search.md                 How TMDB search works, running and changing it, and troubleshooting
   testing.md                      Running tests, adding tests, and how CI works
 prototype/
   ranking.py                      Interactive binary-insertion ranking experiment
@@ -89,8 +90,11 @@ supabase/
   migrations/
     20261014000000_initial.sql    Core tables and access policies
     20261028000000_mvp_ranking.sql  Profile on sign-up, default owners, atomic save_ranking function
-  seed.sql                        50 sample films
+    20261029000000_sample_films_to_tmdb.sql  Relabels the starter films with their TMDB IDs
+  functions/search-movies/        Edge Function: TMDB search that saves results (logic in search.ts and tmdb.ts, Jest-tested)
+  seed.sql                        50 starter films with TMDB IDs
   demo/demo-account.sql           Fills a demo account with a ranked list and a review
+  tests/                          Starter-catalog consistency test (Jest) and database tests (run-database-tests.sh)
 ```
 
 The [UI mockup](ui-mockup/index.html) is a single self-contained page showing the My List, Feed, Rank, For You and Search screens, including the head-to-head ranking flow. The app builds the MVP parts of it: My List, Search, and Rank.
@@ -108,14 +112,15 @@ The prototype uses sample titles and runs in the terminal. It demonstrates ranki
 
 ## Run the tests
 
-With Node.js 24 installed (see `.nvmrc`):
+With Node.js 24 installed (see `.nvmrc`), after `npm run setup`:
 
 ```sh
-npm install
-npm test
+npm test                  # Jest unit tests
+npm run test:db           # database tests (needs a local Postgres)
+npm run check:functions   # type-check the Edge Function
 ```
 
-See [testing](docs/testing.md) for running a single test, adding a new one, and how CI reports results.
+See [testing](docs/testing.md) for setting up Postgres for the database tests, running a single test, adding a new one, and how CI reports results.
 
 ## Contributing
 

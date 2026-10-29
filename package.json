@@ -8,7 +8,9 @@
     "start:lan": "npm --prefix app start",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "test:db": "bash supabase/tests/run-database-tests.sh",
+    "check:functions": "npx --yes deno@2.9.6 check --no-lock --config supabase/functions/search-movies/deno.json supabase/functions/search-movies/index.ts"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",

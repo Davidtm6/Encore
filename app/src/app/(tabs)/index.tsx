@@ -28,12 +28,15 @@ export default function MyListScreen() {
           <ThemedText type="subtitle" accessibilityRole="header">
             My List
           </ThemedText>
-          <Button
-            label="Sign out"
-            variant="plain"
-            size="small"
-            onPress={() => signOut().catch((e) => Alert.alert('Couldn’t sign out', messageOf(e)))}
-          />
+          <View style={styles.headerActions}>
+            <Button label="About" variant="plain" size="small" onPress={() => router.push('/about')} />
+            <Button
+              label="Sign out"
+              variant="plain"
+              size="small"
+              onPress={() => signOut().catch((e) => Alert.alert('Couldn’t sign out', messageOf(e)))}
+            />
+          </View>
         </View>
         {error && <ErrorBanner message={error} onRetry={reload} />}
         {loading ? (
@@ -115,6 +118,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingTop: Spacing.two,
+  },
+  headerActions: {
+    flexDirection: 'row',
   },
   loading: {
     marginTop: Spacing.five,

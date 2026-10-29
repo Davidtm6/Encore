@@ -6,7 +6,11 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "types": ["jest", "node"]
+    "allowImportingTsExtensions": true,
+    "types": ["jest", "node"],
+    "paths": {
+      "@/*": ["./app/src/*"]
+    }
   },
   "include": ["**/*.ts", "**/*.tsx"],
   "exclude": ["**/node_modules"]
