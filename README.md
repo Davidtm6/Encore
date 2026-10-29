@@ -43,24 +43,30 @@ GitHub Actions runs the Jest and Python tests and type-checks and lints the app 
 
 ## Run the app
 
-Follow the [setup guide](docs/setup.md#run-the-app). For a teammate, the team's Supabase project already exists, so it's:
-1. Use Node.js 24.
-2. Run `npm install` in the repository root and in `app/`.
-3. Copy `app/.env.example` to `app/.env` and fill in the URL and publishable key from the team doc.
-4. Run `npm start` in `app/`, or `npm run start:tunnel` on campus Wi-Fi.
-5. Open the app in Expo Go.
+With Node.js 24 installed, from the repository root:
 
-The guide also covers creating a new Supabase project, the demo account and script, and the rules for changing the shared schema.
+```sh
+npm run setup   # checks Node and installs the root and app dependencies
+npm start       # starts the app over a tunnel; scan the QR code with Expo Go
+```
+
+The app already points at the team's Supabase development project through `app/.env.development`, so there's nothing to configure. The [setup guide](docs/setup.md#run-the-app) covers the following:
+- installing Node 24;
+- troubleshooting;
+- the demo account and demo script;
+- creating a new Supabase project;
+- the rules for changing the shared schema.
 
 ## Repository layout
 
 ```text
 README.md                         Project overview and entry point
-package.json                      Jest test scripts and dev dependencies (including the Supabase CLI)
+package.json                      setup, start, and test scripts; dev dependencies (including the Supabase CLI)
+scripts/setup.mjs                 One-time setup: checks Node and installs root and app dependencies
 jest.config.js                    Jest configuration (finds every *.test.ts file)
 .github/workflows/ci.yml          CI: tests, app typecheck and lint on pull requests and pushes to main
-app/                              Expo app (own package.json; run npm commands from here)
-  .env.example                    Supabase URL and publishable key to copy into app/.env
+app/                              Expo app (own package.json)
+  .env.development                The team dev project's URL and publishable key (override in .env.local)
   src/app/                        Screens (Expo Router): sign-in, My List and Search tabs, Rank and Review modals
   src/components/                 Shared display components (MovieCard, ComparisonPair, ErrorBanner, ...)
   src/hooks/                      One hook per screen; holds state, loading, errors, and retries
