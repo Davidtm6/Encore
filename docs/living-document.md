@@ -6,21 +6,27 @@ Status: CSE 403 project plan. This file mirrors the team's living document; upda
 
 | Member | GitHub | Area |
 | --- | --- | --- |
-| Alexander Knotwell | `alexknot` | Backend: shared data model for rankings, reviews, and lists |
-| David Tong | `davidtm6` | Accounts, privacy, interface, and accessibility |
-| Lucas Mesfin | `lucasm16` | Movie search and data |
-| Pavan Chaganti | `pavankc` | Ranking and reviews |
-| Nathan Simon | `nsimon06` | Testing, deployment, and user feedback |
+| Alexander Knotwell | `alexknot` | Backend lead: shared data model for rankings, reviews, and lists |
+| David Tong | `davidtm6` | Interface and accessibility lead; accounts and privacy |
+| Lucas Mesfin | `lucasm16` | Movie search and data lead |
+| Pavan Chaganti | `pavankc` | Ranking and review lead |
+| Nathan Simon | `nsimon06` | Forward deployed engineer; testing and deployment lead |
 
 Repository: <https://github.com/Davidtm6/Encore>
 
-Coordination happens in iMessage, decisions are recorded in Google Docs, and tasks and reviews are tracked in GitHub issues and pull requests. Course questions go to Ed, following the course discussion rules.
+Day-to-day coordination happens in iMessage, and the team meets in person each week to plan. Decisions are recorded in a shared document, and tasks and reviews are tracked in GitHub issues and pull requests. Course questions go to Ed, following the course discussion rules.
 
 ## 2. Product description
 
-Encore is a movie-ranking app for people who want to remember what they watched and understand their preferences. Instead of assigning every film a score, users choose between two movies to build a personal best-to-worst list. Reviews explain those choices; optional social and discovery features can help users find their next movie.
+**Abstract.** Encore is a social movie-ranking app. Users rank movies through head-to-head comparisons instead of giving each film a numerical rating. They write reviews of the movies they've watched. Social features (stretch goals) let them add friends, explore friends' reviews and rankings, and comment to start a discussion. Encore also aims to give personalized recommendations based on a user's rankings and viewing history.
 
-**Problem and alternatives.** Letterboxd and IMDb use a 5-star or 1–10 scale. Scores can leave several films tied even when a viewer prefers one. Encore's focus is a guided comparison flow that makes relative preferences explicit. We will test whether viewers find this useful and easy to use; we do not assume it is unique among existing apps.
+**Goal.** Help users track the movies they've watched and see how those movies compare. Head-to-head choices replace numerical or star ratings, so the ranking reflects the user's real preferences.
+
+**Current practice.** Letterboxd and IMDb use a 5-star or 1–10 scale. Both give users only about ten possible scores, so two films rated 4 stars or 8/10 sit tied even when the viewer prefers one.
+
+**Novelty.** Encore focuses on comparing movies instead of rating them. Users have to decide what makes one movie more enjoyable than another. That pushes them to reflect on what they watched and on their preferences, and the result is a ranking that better represents their taste. Social features and recommendations make discussing and discovering films more interactive. We will test whether viewers find the comparison flow useful and easy to use.
+
+**Effects.** Ranking, discussing, and discovering films becomes more engaging. Social features encourage conversations between friends and let each user share their view of a film. Recommendations based on personal rankings give users a broad selection of films to watch next. The aim is to turn personal opinions into discussion and discovery and to build a community.
 
 **MVP features.**
 
@@ -33,7 +39,7 @@ Users can view their saved watched list, ranking, and reviews after signing back
 
 **Stretch goals.** Accepted friendships with shared reviews and comments; personalized recommendations based on a user's top-ranked movies and what their friends rank highly.
 
-**Approach and scope.** A mobile app for iOS and Android in React Native (TypeScript) with Expo, run in Expo Go during development; a Node.js service for ranking and data access; Supabase for auth and data; TMDB as the movie-data source, with a seeded sample catalog for testing.
+**Approach and scope.** A mobile app for iOS and Android in React Native (TypeScript) with Expo, run in Expo Go during development; a Node.js service for ranking and data access; Supabase (PostgreSQL) for auth, accounts, rankings, and reviews; TMDB as the movie-data source, with a seeded sample catalog for testing. Ranking uses binary insertion: the new movie is compared with movies already in the list until its position is narrowed down. Recommendations start simple, using the user's top-ranked movies and what their friends rank highly. We build a bare-bones app with the core flow (accounts, movie search) first, then add features incrementally, with GitHub for source control.
 
 **Main challenge.** Comparisons may feel repetitive or fail to reflect changing preferences. Keep each choice simple, allow canceling and re-ranking, and test the flow early with movie viewers.
 
@@ -101,7 +107,7 @@ Users can view their saved watched list, ranking, and reviews after signing back
 ## 5. External requirements
 
 - **Expected errors:** Encore validates account, search, and review input and explains empty results, unavailable services, and save failures. Exercise these conditions before release; failures must not corrupt saved data.
-- **Public access:** distribute the app to testers through TestFlight (iOS) and Google Play internal testing (Android). A new tester must be able to install it, create an account, and complete the core movie flow without help from the team.
+- **Public access:** deploy the mobile app to testers through TestFlight (iOS) and Google Play internal testing (Android). A new tester must be able to install and open it, create an account, and complete the core movie flow without help from the team.
 - **Build and developer documentation:** the repository explains how to run the app and service, create a fresh database, configure required services, load sample movies, and ship a new build. It documents the main components and the contribution process. Someone outside the team follows the instructions on a clean setup.
 - **Feasible scope:** assign the four MVP features across the five members and finish them before stretch work. At weekly reviews, defer social or recommendation work if any core use case is incomplete. Update assignments if team size changes.
 
@@ -123,11 +129,11 @@ Users can view their saved watched list, ranking, and reviews after signing back
 
 Everyone codes, reviews, and tests. Each area has one owner.
 
-- **David — accounts and privacy.** Every feature needs secure sign-in and private data.
-- **Alex — backend.** Rankings, reviews, and lists share one data model.
-- **Lucas — search and data.** Every flow starts with finding a movie.
-- **Pavan — ranking.** Head-to-head ranking is the core feature.
-- **Nathan — testing, deployment, and feedback.** Five people merging need CI, a stable deploy, and user testing.
+- **David — accounts and privacy.** Every feature needs secure sign-in and private data. Fit: CSE 484.
+- **Alex — backend.** Rankings, reviews, and lists share one data model. Fit: research and backend projects.
+- **Lucas — search and data.** Every flow starts with finding a movie. Fit: API projects.
+- **Pavan — ranking.** Head-to-head ranking is the core feature. Fit: algorithms coursework.
+- **Nathan — testing, deployment, and feedback.** Five people merging need CI, a stable deploy, and user testing. Fit: internships shipping production apps.
 
 ### Subgroups and backups
 
@@ -180,9 +186,19 @@ Tasks are one person-week each unless noted; dependencies follow the semicolon.
 
 ### Test plan and bugs
 
-Every MVP use case (UC1–5), including its exceptions, and every non-functional requirement maps to at least one suite below.
+We test every MVP use case (UC1–5), including its exceptions, and every non-functional requirement. Each one maps to at least one suite below, which is why the plan is sufficient.
 
-- **Unit tests (Jest):** the ranking engine (insertion, cancel, first movie, no duplicates) and input validation. Run on every PR; a failing test blocks the merge.
+#### Test automation and CI
+
+- **Framework:** Jest with `ts-jest`. Jest is Expo's default and works with React Native Testing Library.
+- **Adding a test:** create a `*.test.ts` file next to the code and run `npm test`. Jest finds it automatically. See `docs/testing.md`.
+- **CI:** GitHub Actions runs `.github/workflows/ci.yml`. We chose it because the code and reviews are already on GitHub, and results show on the pull request.
+- **What CI runs:** all Jest unit tests, the database tests, app type-checking and lint, a type check of the `search-movies` Edge Function, and the Python prototype's tests. Maestro, accessibility, and usability tests run outside CI (see below).
+- **Triggers:** opening or updating a pull request, and every push to `main`. A failing test blocks the merge.
+
+#### Suites
+
+- **Unit tests (Jest):** the ranking engine (insertion, cancel, first movie, no duplicates) and input validation. Run on every PR.
 - **Database tests (psql against Postgres in CI):** migrations, the seed and demo script, `save_ranking`, and row-level security, including a second account trying to read and change the first one's data. Run on every PR; see `docs/testing.md`.
 - **System tests (Maestro on the iOS Simulator and Android emulator), run before each tester release:**
   - Use cases: one happy-path and one exception test per use case.
@@ -296,7 +312,9 @@ These are places where the team document disagrees with itself or leaves a choic
 - **Where the atomic save lives.** Risk 4 describes a Supabase database function; section 7.2 describes an API transaction. Both can hold if the API calls one database function that checks a list version and rewrites the order.
 - **Offline ranking.** Section 7.4 assumes rankings work offline, but saves go through the API. Decide whether offline means queued saves or comparisons only.
 - **Ties and skips.** Risk 2's mitigation adds "skip" or "too close to call", which the strict ordering does not yet support.
-- **Web leftovers.** The team document's accessibility and public-access requirements (sections 4 and 5) still mention keyboard use and deploying a web app. This file rewrites them for mobile (VoiceOver and TalkBack, TestFlight and Google Play).
+- **Web leftovers.** The team document's accessibility requirement (section 4) still asks for keyboard use with visible focus. This file rewrites it for mobile (VoiceOver and TalkBack). The revised pitch's technical approach (section 2) also still says a React frontend deployed on Vercel with the IMDb API, which contradicts the Expo app and TMDB in the same section. This file keeps Expo and TMDB.
+- **Merge blocking.** The test plan says a failing test blocks the merge, but `main` has no branch protection or required checks yet. Turn on required status checks for the CI jobs in the GitHub repository settings.
+- **Where decisions live.** Section 1 says decisions go in a shared Word doc; section 6 says Google Docs.
 - **iOS-only wording.** The team document says iOS throughout (TestFlight, VoiceOver, iOS Simulator). This file says iOS and Android, since Expo builds both; the team document should be updated to match, and the team needs a Google Play developer account and an Android test device.
 - **Public versus friends-only reviews.** The draft migration lets any signed-in user read reviews; decide before the social stretch goals.
 - **Use-case owners.** Section 3's owners don't match the schedule or the roles:
