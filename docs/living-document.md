@@ -195,6 +195,7 @@ We test every MVP use case (UC1–5), including its exceptions, and every non-fu
 - **CI:** GitHub Actions runs `.github/workflows/ci.yml`. We chose it because the code and reviews are already on GitHub, and results show on the pull request.
 - **What CI runs:** all Jest unit tests, the database tests, app type-checking and lint, a type check of the `search-movies` Edge Function, and the Python prototype's tests. Maestro, accessibility, and usability tests run outside CI (see below).
 - **Triggers:** opening or updating a pull request, and every push to `main`. A failing test blocks the merge.
+- **Protecting `main`:** the "Protect main" repository ruleset requires a pull request and the Jest, app, database, and Edge Function checks to pass before merging, and it blocks force-pushes and deleting the branch. It requires no approvals, so authors can merge their own PRs. The one review per PR in our process is a team rule that GitHub doesn't enforce. The Python prototype check isn't required, so the prototype can be removed without blocking merges.
 
 #### Suites
 
@@ -313,7 +314,6 @@ These are places where the team document disagrees with itself or leaves a choic
 - **Offline ranking.** Section 7.4 assumes rankings work offline, but saves go through the API. Decide whether offline means queued saves or comparisons only.
 - **Ties and skips.** Risk 2's mitigation adds "skip" or "too close to call", which the strict ordering does not yet support.
 - **Web leftovers.** The team document's accessibility requirement (section 4) still asks for keyboard use with visible focus. This file rewrites it for mobile (VoiceOver and TalkBack). The revised pitch's technical approach (section 2) also still says a React frontend deployed on Vercel with the IMDb API, which contradicts the Expo app and TMDB in the same section. This file keeps Expo and TMDB.
-- **Merge blocking.** The test plan says a failing test blocks the merge, but `main` has no branch protection or required checks yet. Turn on required status checks for the CI jobs in the GitHub repository settings.
 - **Where decisions live.** Section 1 says decisions go in a shared Word doc; section 6 says Google Docs.
 - **iOS-only wording.** The team document says iOS throughout (TestFlight, VoiceOver, iOS Simulator). This file says iOS and Android, since Expo builds both; the team document should be updated to match, and the team needs a Google Play developer account and an Android test device.
 - **Public versus friends-only reviews.** The draft migration lets any signed-in user read reviews; decide before the social stretch goals.
