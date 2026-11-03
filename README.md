@@ -41,6 +41,17 @@ Deferred to later increments:
 
 GitHub Actions runs the Jest, database, and Python tests, type-checks the Edge Function, and type-checks and lints the app on every pull request.
 
+## Build
+
+With Node.js 24 installed (see `.nvmrc`), from the repository root:
+
+```sh
+npm run setup   # checks Node and installs the root and app dependencies
+npm run build   # type-checks and lints the app, then type-checks the Edge Function
+```
+
+`npm run build` stops at the first error. The Edge Function check downloads Deno the first time it runs. CI runs the same command on every pull request.
+
 ## Run the app
 
 With Node.js 24 installed, from the repository root:

@@ -47,6 +47,22 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
 
+  # The README's build command, run the way a new contributor runs it. It
+  # repeats the App and Edge Function checks so the documented path can't drift.
+  build:
+    name: Build (npm run build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - run: npm ci --prefix app
+      - run: npm run build
+
   # Migrations, seed, demo script, and access rules on a throwaway Postgres.
   database:
     name: Database (migrations and access rules)

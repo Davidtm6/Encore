@@ -4,6 +4,7 @@
   "description": "Encore social movie-ranking app",
   "scripts": {
     "setup": "node scripts/setup.mjs",
+    "build": "npm --prefix app run typecheck && npm --prefix app run lint && npm run check:functions",
     "start": "npm --prefix app run start:tunnel",
     "start:lan": "npm --prefix app start",
     "test": "jest",

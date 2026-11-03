@@ -12,6 +12,7 @@ From the repo root:
 
 ```sh
 npm run setup                  # check Node, install root + app deps
+npm run build                  # app typecheck + lint, then Edge Function check (stops at first error)
 npm start                      # Expo over a tunnel (scan QR with Expo Go); npm run start:lan for LAN
 npm test                       # all Jest tests (any *.test.ts(x) anywhere in the repo)
 npm test -- app/src/ranking    # one folder/file
