@@ -72,10 +72,12 @@ The app already points at the team's Supabase development project through `app/.
 
 ```text
 README.md                         Project overview and entry point
-package.json                      setup, start, and test scripts; dev dependencies (including the Supabase CLI)
+CONTRIBUTING.md                   Branches, commits, pull requests, and how to file bugs
+package.json                      setup, build, start, and test scripts; dev dependencies (including the Supabase CLI)
 scripts/setup.mjs                 One-time setup: checks Node and installs root and app dependencies
 jest.config.js                    Jest configuration (finds every *.test.ts file)
-.github/workflows/ci.yml          CI: tests, app typecheck and lint on pull requests and pushes to main
+.github/workflows/ci.yml          CI: build, tests, app typecheck and lint on pull requests and pushes to main
+.github/ISSUE_TEMPLATE/           Bug report template
 app/                              Expo app (own package.json)
   .env.development                The team dev project's URL and publishable key (override in .env.local)
   src/app/                        Screens (Expo Router): sign-in, My List and Search tabs, Rank, Review, and About modals
@@ -133,6 +135,9 @@ npm run check:functions   # type-check the Edge Function
 
 See [testing](docs/testing.md) for setting up Postgres for the database tests, running a single test, adding a new one, and how CI reports results.
 
-## Contributing
+## Contributing and bugs
 
-Code follows the Google TypeScript Style Guide (enforced with `gts`) and the Airbnb React/JSX Style Guide; see [coding guidelines](docs/living-document.md#9-coding-guidelines). Every PR gets one review, and any PR that changes setup or behavior updates the relevant doc.
+[CONTRIBUTING.md](CONTRIBUTING.md) explains the workflow:
+- **Version control:** branch from `main` with a prefix such as `feature/` or `fix/`, write descriptive commits, and open a pull request. The "Protect main" ruleset requires a PR and passing CI checks, and blocks force-pushes. Every PR gets one review from a teammate, and any PR that changes setup or behavior updates the relevant doc.
+- **Bug tracking:** file bugs in [GitHub Issues](https://github.com/Davidtm6/Encore/issues) with **New issue → Bug report**. The template asks for steps to reproduce, expected and actual behavior, the use case, the device, and severity. Bugs are triaged at the weekly planning meeting, and each fix gets a regression test.
+- **Code style:** Google TypeScript Style Guide and Airbnb React/JSX Style Guide; see [coding guidelines](docs/living-document.md#9-coding-guidelines). Today, `npm run build` enforces ESLint with `eslint-config-expo` and the TypeScript compiler.
