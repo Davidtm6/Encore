@@ -51,7 +51,7 @@ npm run setup   # checks your Node version, installs the root and app dependenci
 npm run build   # type-checks and lints the app, then type-checks the Edge Function
 ```
 
-`npm run build` stops at the first error. The Edge Function check downloads Deno the first time. CI runs the same command on every pull request.
+`npm run setup` takes under a minute. npm may warn that install scripts for `unrs-resolver` or `@parcel/watcher` aren't approved; that's expected, and nothing needs them. `npm run build` stops at the first error. The Edge Function check downloads Deno the first time. CI runs the same command on every pull request.
 
 Expo bundles the app's JavaScript when you [run](#run) it, so there is no separate compile step. Store builds (EAS) come before the tester release.
 
@@ -62,6 +62,8 @@ After `npm run setup`, from the repository root:
 ```sh
 npm test   # every Jest test: ranking engine, search logic, error messages, starter-film consistency
 ```
+
+It needs no network, database, or accounts, and ends with `Test Suites: 6 passed`.
 
 The other suites:
 
@@ -90,7 +92,9 @@ Then open the app:
 
 `app/.env.development` already points at the team's Supabase project, so there is nothing to configure. On a home network, `npm run start:lan` reloads faster than the tunnel.
 
-To try it, sign up with any email address and a username; you're signed in right away, since email verification is off on the development project. Then follow the use cases above: search for a film, mark it watched, rank it, rank a second one, and write a review. The [setup guide](docs/setup.md#run-the-app) has the full demo script, troubleshooting (for example a red screen about `EXPO_PUBLIC_SUPABASE_URL`), and how to point the app at your own Supabase project.
+To try it, sign up with any email address and a username; you're signed in right away, since email verification is off on the development project. There's no password reset yet, so if you mistype something, sign up again with a different email. Then follow the use cases above: search for a film, mark it watched, rank it, rank a second one, and write a review.
+
+For a longer list to rank against, [Prepare a demo account](docs/setup.md#4-prepare-a-demo-account) fills an account with 10 ranked films and a review (it needs access to the Supabase dashboard). The [setup guide](docs/setup.md#run-the-app) has the full demo script, troubleshooting (for example a red screen about `EXPO_PUBLIC_SUPABASE_URL`), and how to point the app at your own Supabase project.
 
 ## Architecture
 
