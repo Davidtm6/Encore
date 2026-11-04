@@ -227,29 +227,33 @@ Any PR that changes setup or behavior also updates the relevant doc.
 ### 7.1 Major components
 
 - **Mobile app (React Native + Expo, iOS and Android):** sign up and sign in, movie search, the watched list, ranking by picking between two movies, and reviews.
-- **Ranking engine (TypeScript, runs inside the app):** chooses the next pair to show, records each pick, and works out the movie's final position. Running on the phone keeps every tap instant. The server runs the same code to check the result.
-- **Authentication (Supabase Auth):** sign up, email verification, sign in, password reset, and login tokens. Encore never stores or sees passwords.
-- **Encore API (Node.js + TypeScript):** our own server. The app sends every data request here. It checks who the user is, validates input, saves rankings and reviews, and fetches movie data from TMDB.
-- **Database (Supabase Postgres):** profiles, movies, watched lists, rankings, and reviews. Only the Encore API reads or writes it; RLS stays enabled on every table as a second line of defense.
-- **Movie data (TMDB):** titles, years, posters, and descriptions.
-- **CI/CD (GitHub Actions):** runs tests on every pull request.
+- **Ranking engine (TypeScript, runs inside the app):** chooses the next pair to show, records each pick, and works out the movie's final position. Running on the phone keeps every tap instant. The database checks the final order before saving it (see 7.5).
+- **Authentication (Supabase Auth):** sign up, sign in, and login tokens. Encore never stores or sees passwords. Email verification and password reset come before the tester release.
+- **Movie search (Supabase Edge Function `search-movies`, Deno + TypeScript):** checks the caller's login token, searches TMDB, saves the results to `movies`, and returns them. If TMDB fails, it searches the movies already saved.
+- **Database (Supabase Postgres):** profiles, movies, watched lists with each movie's rank position, and reviews. The app reads and writes it with the user's login token, so RLS on every table and the `save_ranking` function are the security boundary. Only the Edge Function can write `movies`.
+- **Movie data (TMDB):** titles, years, and posters.
+- **CI (GitHub Actions):** builds and runs the tests on every pull request.
+- **Encore API (Node.js + TypeScript, deferred):** our own server, planned for the server-side ranking re-check and rate limits. It isn't built; see 7.5.
 
 ```mermaid
 flowchart LR
     App[Mobile app<br/>React Native + Expo<br/>ranking engine] -->|sign up, sign in| Auth[Supabase Auth]
-    App -->|HTTPS + login token| API[Encore API<br/>Node.js + TypeScript]
-    API -->|verify token| Auth
-    API -->|one transaction per save| DB[(Supabase Postgres<br/>RLS on every table)]
-    API -->|search, cached| TMDB[TMDB]
+    App -->|reads and writes<br/>with login token| DB[(Supabase Postgres<br/>RLS on every table,<br/>save_ranking)]
+    App -->|search with login token| Fn[search-movies<br/>Edge Function]
+    Fn -->|verify token| Auth
+    Fn -->|search, popular| TMDB[TMDB]
+    Fn -->|save results| DB
 ```
 
 ### 7.2 Interactions
 
-- **App → Supabase Auth:** sign up with email, password, and username; Supabase sends the confirmation email.
-- **App → Encore API:** HTTPS requests with the login token attached.
-- **Encore API → Supabase Auth:** verifies each token and identifies the user. That user ID scopes every database query, so people can only see and change their own data.
-- **Encore API → Database:** saving a ranking happens in one transaction, so it either fully saves or changes nothing.
-- **Encore API → TMDB:** movie search results.
+- **App → Supabase Auth:** sign up with email, password, and username; a database trigger creates the profile. The development project has email confirmation turned off.
+- **App → Database:** reads and writes the watched list and reviews with the login token attached. RLS limits each user to changing their own rows.
+- **App → `save_ranking`:** sends the whole new order. The function locks the user's rows, checks that the order is complete and contains only their watched movies, and rewrites every position in one transaction, so a ranking either fully saves or changes nothing. If the list changed elsewhere, it fails with `40001` and the app restarts the comparison.
+- **App → `search-movies`:** sends the search text with the login token attached.
+- **`search-movies` → Supabase Auth:** verifies the token, so only signed-in users can search.
+- **`search-movies` → TMDB:** title search, or popular movies for an empty search.
+- **`search-movies` → Database:** saves the results to `movies` with the admin key and returns rows with Encore's own IDs.
 
 ### 7.3 Data storage
 
@@ -279,18 +283,18 @@ Genre, display name, a separate rankings table, and matchup rate limits are not 
 
 ### 7.5 Architecture decisions
 
-- Build our own API and backend instead of calling Supabase directly from the app.
-- Run the ranking engine in the app for instant feedback, and re-check results on the server before saving.
-- **First demo (deferral):** until the Encore API exists, the app calls Supabase directly. RLS on every table and the `save_ranking` database function are the security boundary. `save_ranking` checks that an order is complete and contains only the caller's watched movies, but doesn't replay comparisons. When the API is built, only `app/src/services` changes.
+- **The app calls Supabase directly; the Encore API is deferred (decided for the beta, #16).** The original plan sent every request through our own API. Instead, the server side is the `search-movies` Edge Function plus RLS and database functions in Postgres. This covers every MVP use case with less to host and keep running. The API comes back when the server-side ranking re-check or rate limits need it; then only `app/src/services` changes.
+- Run the ranking engine in the app for instant feedback. `save_ranking` checks that an order is complete and contains only the caller's watched movies, but doesn't replay comparisons yet; that re-check is the main reason to build the API.
+- Keep TMDB behind the Edge Function, so the TMDB key never ships in the app and search results are saved for when TMDB is unavailable.
 
 ## 8. Software design
 
-The repository will have three top-level folders: `app/` (Expo app), `server/` (Encore API and ranking), and `supabase/` (database and movie search); `server/` does not exist yet. In the app, screens call hooks and hooks call services. There is one screen per use case area: sign in and sign up, my movies, search, ranking, and reviews. Following the Expo template, app code lives under `app/src/`. Routes are in `app/src/app/`, and the folders below are `app/src/components`, `app/src/hooks`, and `app/src/services`. The ranking engine is in `app/src/ranking`.
+The repository has two top-level code folders: `app/` (Expo app) and `supabase/` (database and movie search). A third, `server/` (Encore API and ranking re-check), is deferred (see 7.5). In the app, screens call hooks and hooks call services. There is one screen per use case area: sign in and sign up, my movies, search, ranking, and reviews. Following the Expo template, app code lives under `app/src/`. Routes are in `app/src/app/`, and the folders below are `app/src/components`, `app/src/hooks`, and `app/src/services`. The ranking engine is in `app/src/ranking`.
 
 - **Components (`app/components`):** a few shared display components (`MovieCard`, `ComparisonPair`, `RankedList`, `ErrorBanner`) that render data and collect input.
 - **Hooks (`app/hooks`):** one per screen (`useSession`, `useMovieSearch`, `useMyMovies`, `useRanking`, `useReview`). Each holds the screen's state, calls services, and handles loading, errors, and retries.
 - **Services (`app/services`):** one typed client per backend resource (`authService`, `movieService`, `watchedService`, `reviewService`, `rankingApi`), sharing types generated from the database schema.
-- **Ranking service (`server/src`):** decides where each movie goes in a user's list. It first checks who is making the request and that the request makes sense. `RankingService` runs the comparison exchange and saves the final position; `RankingSession` picks the next pair and where the new movie belongs; `RankingRepository` reads and saves rankings.
+- **Ranking service (`server/src`, deferred):** decides where each movie goes in a user's list. It first checks who is making the request and that the request makes sense. `RankingService` runs the comparison exchange and saves the final position; `RankingSession` picks the next pair and where the new movie belongs; `RankingRepository` reads and saves rankings.
 - **Supabase (`supabase/`):** migrations create the tables and the rules for who can see what. The `search-movies` Edge Function (`supabase/functions/search-movies`) looks up movies on TMDB for the app and saves them to `movies`. If TMDB fails, it searches the movies already saved.
 
 ### Ranking algorithm
@@ -308,7 +312,7 @@ The Python prototype in `prototype/` explores this algorithm and tests every ins
 
 These are places where the team document disagrees with itself or leaves a choice open. Resolve them in Google Docs and update this section.
 
-- **API framework.** Sections 2 and 8 say Express; section 7 says Fastify.
+- **API framework.** Sections 2 and 8 say Express; section 7 says Fastify. This only matters once the Encore API is built (see 7.5).
 - **Ranking model.** Sections 7.3 and 7.5 mention Elo and assume no re-ranking, but UC4 makes re-ranking an MVP feature and the risks, tests, and schedule all assume binary insertion into an ordered list. This file assumes binary insertion.
 - **Where the atomic save lives.** Risk 4 describes a Supabase database function; section 7.2 describes an API transaction. Both can hold if the API calls one database function that checks a list version and rewrites the order.
 - **Offline ranking.** Section 7.4 assumes rankings work offline, but saves go through the API. Decide whether offline means queued saves or comparisons only.
@@ -321,4 +325,3 @@ These are places where the team document disagrees with itself or leaves a choic
   - UC2 (find a movie) lists Pavan, but Lucas owns search and builds UC2 in week 2.
   - UC3 (rank) lists Lucas, but Pavan owns ranking and builds UC3 in week 3.
   - UC4 (re-rank) lists Nathan, but the schedule gives it to Lucas in week 4.
-- **When the Encore API comes back.** The first demo calls Supabase directly (see 7.5). Decide whether the API is still needed for the MVP or only for the server-side ranking re-check and rate limits. TMDB search already runs in a Supabase Edge Function.
