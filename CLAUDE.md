@@ -12,6 +12,7 @@ From the repo root:
 
 ```sh
 npm run setup                  # check Node, install root + app deps
+npm run build                  # app typecheck + lint, then Edge Function check (stops at first error)
 npm start                      # Expo over a tunnel (scan QR with Expo Go); npm run start:lan for LAN
 npm test                       # all Jest tests (any *.test.ts(x) anywhere in the repo)
 npm test -- app/src/ranking    # one folder/file
@@ -23,7 +24,7 @@ python3 -m unittest discover -s prototype -v   # Python ranking prototype
 
 From `app/`: `npm run typecheck` and `npm run lint` (`expo lint`). Add app packages with `npx expo install <pkg>` so versions match the Expo SDK.
 
-CI (`.github/workflows/ci.yml`) runs Jest, app typecheck+lint, database tests (Postgres 17), Edge Function check, and the Python prototype. The `main` ruleset requires a PR and all but the Python check to pass.
+CI (`.github/workflows/ci.yml`) runs Jest, app typecheck+lint, `npm run build`, database tests (Postgres 17), Edge Function check, and the Python prototype. The `main` ruleset requires a PR and the Jest, App, Database, and Edge Function checks to pass. Branch, commit, PR, and bug conventions are in `CONTRIBUTING.md`.
 
 ## Architecture
 

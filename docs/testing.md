@@ -29,7 +29,13 @@ npm run test:watch                       # rerun on save
 npm run test:coverage                    # coverage report in coverage/
 ```
 
-Type-check and lint the app from `app/`:
+Type-check and lint the app, and type-check the Edge Function, with one command from the repository root:
+
+```sh
+npm run build
+```
+
+Or run the app's checks separately from `app/`:
 
 ```sh
 npm run typecheck
@@ -111,19 +117,20 @@ For the Python prototype, add `test_*` methods to `prototype/test_ranking.py`, o
 
 ## Continuous integration
 
-The workflow is [`.github/workflows/ci.yml`](../.github/workflows/ci.yml). It has five jobs:
+The workflow is [`.github/workflows/ci.yml`](../.github/workflows/ci.yml). It has six jobs:
 
 | Job | What it runs |
 | --- | --- |
 | Jest (TypeScript) | `npm ci`, then `npm test -- --ci` |
 | App (typecheck and lint) | In `app/`: `npm ci`, `npm run typecheck`, `npm run lint` |
+| Build (npm run build) | `npm ci --prefix app`, then the README's `npm run build` |
 | Database (migrations and access rules) | `supabase/tests/run-database-tests.sh` against a Postgres 17 service container |
 | Edge Function (type check) | `npm run check:functions` |
 | Python prototype | `python -m unittest discover -s prototype -v` |
 
 Results appear in the **Checks** section of each pull request and on the repository's **Actions** tab. To see why a job failed, open it and expand the failed step; the output matches what the same command prints locally.
 
-To make a failing check block the merge, a repository admin adds the jobs as required status checks: **Settings → Branches → Branch protection rules** (or **Rulesets**) for `main`, then **Require status checks to pass** and select all five.
+The "Protect main" ruleset (**Settings → Rules → Rulesets**) blocks merging until the Jest, App, Database, and Edge Function jobs pass. Build and Python prototype run but aren't required: Build repeats the App and Edge Function checks, and the prototype may be removed. To require another job, a repository admin adds it under **Require status checks to pass**. Add it only after it has run on a pull request at least once, and never require a job that might be deleted, or every PR will wait for it forever.
 
 Add a root dependency with `npm install --save-dev <package>` and commit both `package.json` and `package-lock.json`; CI installs exactly what the lockfile lists. In `app/`, add packages with `npx expo install <package>` so the version matches the Expo SDK.
 
