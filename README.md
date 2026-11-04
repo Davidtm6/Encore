@@ -4,69 +4,107 @@ Encore is a social movie-ranking mobile app for iOS and Android built for CSE 40
 
 Team: Alexander Knotwell, David Tong, Lucas Mesfin, Pavan Chaganti, and Nathan Simon. Roles, schedule, and process are in the [living document](docs/living-document.md).
 
-## MVP
+Contents: [Operational use cases](#operational-use-cases) · [Prerequisites](#prerequisites) · [Build](#build) · [Test](#test) · [Run](#run) · [Architecture](#architecture) · [Repository layout](#repository-layout) · [Contributing and bugs](#contributing-and-bugs)
 
-1. Create an account and sign in.
-2. Search movies and mark them watched.
-3. Rank and re-rank movies through comparisons.
-4. Write and edit one review per watched movie.
+## Operational use cases
+
+The MVP is four features: accounts, finding and logging movies, ranking and re-ranking through comparisons, and one editable review per movie. All five use cases from the [living document](docs/living-document.md#3-use-cases-functional-requirements) work end to end in the Expo app against the team's Supabase development project.
+
+| Use case | Status | What works | Components it touches |
+| --- | --- | --- | --- |
+| **UC1:** Create an account | Operational | Sign up with email, username, and password; sign in; sign out. The session survives app restarts. | App → Supabase Auth → Postgres (a trigger creates the profile) |
+| **UC2:** Find and log a movie | Operational | Search TMDB by title (with posters) or browse popular films, then mark one watched. If TMDB is down, search falls back to films already saved. | App → Supabase Auth (login token) → `search-movies` Edge Function → TMDB → Postgres (saves the results); then App → Postgres (`watched_movies`, RLS) |
+| **UC3:** Rank a watched movie | Operational | Pick between two films until the new one has a place; the first film goes straight to #1. Cancel leaves the list unchanged. The whole order saves atomically. | App (ranking engine) → Postgres (`save_ranking` function, RLS) |
+| **UC4:** Re-rank a movie | Operational | Re-rank any ranked film through the same comparisons; other films keep their order. If the list changed elsewhere, the app starts over instead of saving a stale order. | App (ranking engine) → Postgres (`save_ranking` function, RLS) |
+| **UC5:** Write or edit a review | Operational | Write, then edit, one review per watched film, up to 10,000 characters. A failed save keeps the text for a retry. | App → Postgres (`reviews`, RLS: one per user and film, only the author can change it) |
+
+**UC2 touches every major component:** the app, Supabase Auth, the `search-movies` Edge Function, TMDB, and the Postgres database (see [Architecture](#architecture)).
+
+Not built yet, planned before the tester release:
+- Required email verification and password reset (UC1).
+- The 100-matchups-per-hour limit (UC3, UC4) and the review content filter (UC5).
+- The Encore API server (`server/`); see [Architecture](#architecture).
+- EAS builds for TestFlight and Google Play internal testing.
 
 Friendships with shared reviews and comments, and personalized recommendations, are stretch goals that start only after the MVP passes its tests.
 
-## Stack
+## Prerequisites
 
-| Part | Technology |
-| --- | --- |
-| App | React Native (TypeScript) with Expo; Expo Go for development; EAS Build, with TestFlight (iOS) and Google Play internal testing (Android) for testers |
-| Ranking engine | TypeScript, runs in the app and is re-checked on the server |
-| Encore API | Node.js + TypeScript |
-| Auth and database | Supabase Auth and Postgres with row-level security |
-| Movie data | TMDB, through a Supabase Edge Function that saves results to the database; a 50-film starter catalog for fresh databases |
-| CI | GitHub Actions running Jest (with React Native Testing Library) and Maestro |
+| You need | For | Notes |
+| --- | --- | --- |
+| [Git](https://git-scm.com/) | Everything | |
+| [Node.js 24](https://nodejs.org/) | Build, test, run | The version is in `.nvmrc`. Older than 22 won't work. [Setup](docs/setup.md#1-install-nodejs-24-and-the-dependencies) shows how to install it with Homebrew, nvm, or nvm-windows. |
+| [Expo Go](https://expo.dev/go) for Expo SDK 58 on an iPhone or Android phone | Run | Or the iOS Simulator (macOS with Xcode) or the Android emulator. |
+| Postgres 17 with `psql` | Database tests only (optional) | CI runs them on every pull request. |
+| Python 3.10 or newer | Ranking prototype only (optional) | |
 
-## Current progress
-
-The first demo covers all four MVP features in the Expo app (`app/`):
-- **Accounts:** sign up, sign in, and sign out; the session survives restarts.
-- **Search:** search TMDB (with posters), or browse what's popular, and mark a film watched.
-- **Ranking:** rank and re-rank through head-to-head comparisons, with cancel.
-- **Reviews:** write and edit one review per film.
-
-The app talks to a Supabase development project directly. RLS policies and the `save_ranking` database function enforce that people can only change their own data. Rankings save atomically.
-
-Deferred to later increments:
-- The Encore API (`server/`).
-- Required email verification and rate limits.
-- EAS, TestFlight, and Google Play builds.
-
-GitHub Actions runs the Jest, database, and Python tests, type-checks the Edge Function, and type-checks and lints the app on every pull request.
+You don't need a Supabase or TMDB account: the app points at the team's Supabase development project, and only its Edge Function talks to TMDB.
 
 ## Build
 
-With Node.js 24 installed (see `.nvmrc`), from the repository root:
+From a fresh clone:
 
 ```sh
-npm run setup   # checks Node and installs the root and app dependencies
+git clone https://github.com/Davidtm6/Encore.git
+cd Encore
+npm run setup   # checks your Node version, installs the root and app dependencies
 npm run build   # type-checks and lints the app, then type-checks the Edge Function
 ```
 
-`npm run build` stops at the first error. The Edge Function check downloads Deno the first time it runs. CI runs the same command on every pull request.
+`npm run build` stops at the first error. The Edge Function check downloads Deno the first time. CI runs the same command on every pull request.
 
-## Run the app
+Expo bundles the app's JavaScript when you [run](#run) it, so there is no separate compile step. Store builds (EAS) come before the tester release.
 
-With Node.js 24 installed, from the repository root:
+## Test
+
+After `npm run setup`, from the repository root:
 
 ```sh
-npm run setup   # checks Node and installs the root and app dependencies
-npm start       # starts the app over a tunnel; scan the QR code with Expo Go
+npm test   # every Jest test: ranking engine, search logic, error messages, starter-film consistency
 ```
 
-The app already points at the team's Supabase development project through `app/.env.development`, so there's nothing to configure. The [setup guide](docs/setup.md#run-the-app) covers the following:
-- installing Node 24;
-- troubleshooting;
-- the demo account and demo script;
-- creating a new Supabase project;
-- the rules for changing the shared schema.
+The other suites:
+
+```sh
+npm run test:db                                # database tests: migrations, sign-up, save_ranking, and access rules (needs Postgres)
+npm run check:functions                        # Edge Function type check (also part of npm run build)
+python3 -m unittest discover -s prototype -v   # Python ranking prototype
+```
+
+The database tests create and drop their own throwaway databases on a local Postgres and never touch the team's Supabase project. Without Postgres, rely on CI. To set it up on macOS, run `brew install postgresql@17` and `brew services start postgresql@17`.
+
+GitHub Actions runs all of these, plus `npm run build`, on every pull request and every push to `main`; the results appear under **Checks** on the PR. [Testing](docs/testing.md) covers running one test, adding a test, and how CI reports failures. Screens are checked by hand with the [demo script](docs/setup.md#demo-script).
+
+## Run
+
+After `npm run setup`, from the repository root:
+
+```sh
+npm start   # starts Expo over a tunnel, which works on any network
+```
+
+Then open the app:
+- **iPhone:** scan the QR code with the Camera app and tap **Open in Expo Go**.
+- **Android:** scan the QR code from inside Expo Go.
+- **Simulator or emulator:** press `i` (iOS Simulator) or `a` (Android emulator) in the terminal.
+
+`app/.env.development` already points at the team's Supabase project, so there is nothing to configure. On a home network, `npm run start:lan` reloads faster than the tunnel.
+
+To try it, sign up with any email address and a username; you're signed in right away, since email verification is off on the development project. Then follow the use cases above: search for a film, mark it watched, rank it, rank a second one, and write a review. The [setup guide](docs/setup.md#run-the-app) has the full demo script, troubleshooting (for example a red screen about `EXPO_PUBLIC_SUPABASE_URL`), and how to point the app at your own Supabase project.
+
+## Architecture
+
+| Component | Technology | Role |
+| --- | --- | --- |
+| Mobile app | React Native (TypeScript) with Expo and Expo Router | Screens call one hook each, and hooks call typed services in `app/src/services/`. |
+| Ranking engine | TypeScript, in the app (`app/src/ranking/`) | Binary insertion: picks each pair and finds the new position in at most `ceil(log2(n + 1))` comparisons. |
+| Auth | Supabase Auth | Sign up, sign in, and the login tokens every other call carries. |
+| Movie search | Supabase Edge Function `search-movies` (Deno, TypeScript) | Checks the login token, queries TMDB, saves the results to `movies`, and falls back to saved films if TMDB fails. |
+| Movie data | TMDB | Titles, years, and posters. Only the Edge Function calls it. |
+| Database | Supabase Postgres | Profiles, movies, watched lists with rank positions, and reviews. Row-level security on every table and the `save_ranking` function enforce that people can only change their own data. |
+| CI | GitHub Actions | Build, Jest, database tests, and the Python prototype on every pull request. |
+
+The app calls Supabase directly with the publishable key, so the security boundary is the database's access rules, not app code. A separate Encore API server (`server/`, Node.js) is deferred until the server-side ranking re-check and rate limits need it; when it arrives, only `app/src/services/` changes. The [living document](docs/living-document.md#7-software-architecture) has the diagram and the reasons.
 
 ## Repository layout
 
@@ -104,6 +142,7 @@ supabase/
     20261014000000_initial.sql    Core tables and access policies
     20261028000000_mvp_ranking.sql  Profile on sign-up, default owners, atomic save_ranking function
     20261029000000_sample_films_to_tmdb.sql  Relabels the starter films with their TMDB IDs
+    20261029010000_starter_film_posters.sql  Fills in posters for the starter films
   functions/search-movies/        Edge Function: TMDB search that saves results (logic in search.ts and tmdb.ts, Jest-tested)
   seed.sql                        50 starter films with TMDB IDs
   demo/demo-account.sql           Fills a demo account with a ranked list and a review
@@ -114,26 +153,13 @@ The [UI mockup](ui-mockup/index.html) is a single self-contained page showing th
 
 ## Try the ranking prototype
 
-With Python 3.10 or newer installed, run these commands from the repository root:
+With Python 3.10 or newer, from the repository root:
 
 ```sh
 python3 prototype/ranking.py
-python3 -m unittest discover -s prototype -v
 ```
 
-The prototype uses sample titles and runs in the terminal. It demonstrates ranking behavior without a movie API or database; rankings are kept in memory for the session. The app's ranking engine will be written in TypeScript.
-
-## Run the tests
-
-With Node.js 24 installed (see `.nvmrc`), after `npm run setup`:
-
-```sh
-npm test                  # Jest unit tests
-npm run test:db           # database tests (needs a local Postgres)
-npm run check:functions   # type-check the Edge Function
-```
-
-See [testing](docs/testing.md) for setting up Postgres for the database tests, running a single test, adding a new one, and how CI reports results.
+The prototype ranks sample titles in the terminal, without a movie API or database, and keeps the list only for the session. It's a reference for the app's TypeScript engine, not app code. Its tests run with the [other suites](#test).
 
 ## Contributing and bugs
 
