@@ -28,6 +28,21 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test -- --ci
+  
+  tmdb-format:
+    name: TMDB format
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm test -- --ci tmdb-contract
+        env:
+          TMDB_READ_ACCESS_TOKEN: ${{ secrets.TMDB_READ_ACCESS_TOKEN }}
 
   app:
     name: App (typecheck and lint)

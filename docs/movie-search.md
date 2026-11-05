@@ -97,7 +97,7 @@ These steps need access to the team's Supabase organization and the Supabase CLI
    The function reads the new value immediately; no redeploy is needed.
 3. Check it's set with `npx supabase secrets list`. It shows names and hashes, never values.
 
-If the token leaks, generate a new one in TMDB's API settings and set it again.
+If the token leaks, generate a new one in TMDB's API settings and set it again. CI's `TMDB format` job keeps its own copy in a GitHub Actions secret, so replace that too with `gh secret set TMDB_READ_ACCESS_TOKEN --repo Davidtm6/Encore`, which needs repository admin access.
 
 **Deploy the function**
 ```sh
@@ -126,6 +126,7 @@ The About screen (`app/src/app/about.tsx`, opened from My List) covers all three
 | --- | --- |
 | `supabase/functions/search-movies/search.test.ts` | The function's logic with fake TMDB and database calls: the query, the URL, saving and ordering, and every fallback |
 | `supabase/functions/search-movies/tmdb.test.ts` | How TMDB results become rows |
+| `supabase/functions/search-movies/tmdb-contract.test.ts` | That TMDB's live search response still has the fields we read. It skips without `TMDB_READ_ACCESS_TOKEN` |
 | `app/src/services/search-error.test.ts` | The error messages Search shows |
 | `supabase/tests/starter-catalog.test.ts` | That the seed, both TMDB migrations, and the demo script agree on the same 50 films and posters |
 | `supabase/tests/database/tmdb-migrations.test.sql` | Both migrations on the shared database's old state |
@@ -162,3 +163,4 @@ What the tests can't check is the deployed function talking to the real TMDB and
 | One user gets "Your session expired" | Their session ended | Sign out and back in |
 | A starter film shows up twice | It was searched before its TMDB ID migration ran, so one copy is still labeled `'sample'` | Run `select * from public.movies where provider = 'sample';` in the SQL Editor and ask the backend owner to merge the two rows |
 | Starter films show colored tiles instead of posters | The poster migration hasn't been pushed | Run `npx supabase db push` |
+| The `TMDB format` CI job fails | The token was rejected (401), TMDB is down, or TMDB changed its response | Read the job's log. A 401 means replacing the `TMDB_READ_ACCESS_TOKEN` GitHub secret. A changed field means updating `tmdb.ts` and the test. |
