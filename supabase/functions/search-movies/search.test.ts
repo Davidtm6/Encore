@@ -140,6 +140,72 @@ describe('searchMovies', () => {
     expect(calls.fallbackQueries).toEqual([]);
   });
 
+  it('suggests the nearest titles when a misspelled query finds nothing', async () => {
+    const calls: string[] = [];
+    const { deps, calls: saved } = fakeDeps(null, {
+      // TMDB matches the start of a word, so only the shortened queries find anything.
+      fetchTmdb: async (url) => {
+        calls.push(url);
+        if (url === tmdbUrl('interstell')) {
+          return tmdb(
+            { id: 3, title: 'Interstellar Wars', release_date: '2016-01-01' },
+            { id: 157336, title: 'Interstellar', release_date: '2014-11-05', overview: 'A team of explorers.' },
+            { id: 9, title: 'Something Else Entirely' },
+          );
+        }
+        return tmdb();
+      },
+    });
+
+    const result = await searchMovies('intersteller', deps);
+
+    expect(calls).toEqual([
+      tmdbUrl('intersteller'),
+      tmdbUrl('interstelle'),
+      tmdbUrl('interstell'),
+      tmdbUrl('interstel'),
+    ]);
+    // Only the near matches are saved, nearest first; the unrelated film is dropped.
+    expect(saved.saved).toEqual([['157336', '3']]);
+    expect(result).toEqual({
+      status: 200,
+      body: {
+        movies: [],
+        suggestions: [
+          { id: 100, title: 'Interstellar', release_year: 2014, poster_url: null, overview: 'A team of explorers.' },
+          { id: 101, title: 'Interstellar Wars', release_year: 2016, poster_url: null, overview: null },
+        ],
+      },
+    });
+  });
+
+  it('still answers with no movies when looking for near matches fails', async () => {
+    let first = true;
+    const { deps, calls, logged } = fakeDeps(null, {
+      fetchTmdb: async () => {
+        if (first) {
+          first = false;
+          return tmdb();
+        }
+        return tmdb({ id: 1, title: 'Incepton' });
+      },
+      saveRows: async () => {
+        throw new Error('permission denied');
+      },
+    });
+
+    expect(await searchMovies('incepton', deps)).toEqual({ status: 200, body: { movies: [] } });
+    expect(calls.fallbackQueries).toEqual([]);
+    expect(logged).toEqual(['Looking for near matches failed.']);
+  });
+
+  it('does not look for near matches when the popular list is empty', async () => {
+    const { deps, calls } = fakeDeps(tmdb());
+
+    expect(await searchMovies('', deps)).toEqual({ status: 200, body: { movies: [] } });
+    expect(calls.urls).toEqual([tmdbUrl('')]);
+  });
+
   it('never saves or returns adult results', async () => {
     const { deps, calls } = fakeDeps(tmdb({ id: 1, title: 'Adult', adult: true }, { id: 2, title: 'Fine' }));
 
@@ -161,7 +227,8 @@ describe('searchMovies', () => {
     expect(calls.fallbackQueries).toEqual(['saved']);
     expect(result).toEqual({
       status: 200,
-      body: { movies: [{ id: 7, title: 'Saved film', release_year: 2000, poster_url: null }] },
+      // fromSaved lets the app say why there are no plot lines (#54).
+      body: { movies: [{ id: 7, title: 'Saved film', release_year: 2000, poster_url: null }], fromSaved: true },
     });
     expect(logged).toEqual(['TMDB search failed; searching saved movies instead.']);
   });

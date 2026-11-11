@@ -1,4 +1,5 @@
-import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { router, Stack, useLocalSearchParams, usePreventRemove } from 'expo-router';
+import { useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/button';
@@ -20,22 +21,27 @@ export default function RankScreen() {
   const { movie, opponent, range, position, previousPosition, total, progress, above, below } = ranking;
   // Once an answer is given there is something to lose, so closing asks first.
   const hasAnswers = progress.answered > 0;
+  // Set once the person has agreed to discard, so the screen can then close.
+  const [discarding, setDiscarding] = useState(false);
 
-  // Closing without saving leaves the stored ranking exactly as it was.
-  async function cancel() {
-    if (
-      !hasAnswers ||
-      (await confirmAction('Discard this ranking?', 'Your answers so far won’t be saved.', 'Discard'))
-    ) {
-      router.back();
+  // Every way of leaving goes through here: the header arrow, Cancel, a swipe,
+  // and Android's back button. Closing without saving leaves the stored
+  // ranking exactly as it was.
+  const allowClosing = usePreventRemove(hasAnswers && !discarding, async ({ repeat }) => {
+    if (await confirmAction('Discard this ranking?', 'Your answers so far won’t be saved.', 'Discard')) {
+      setDiscarding(true);
+      repeat();
     }
-  }
+  });
 
   async function save() {
     if (await ranking.save()) {
       if (movie && position !== null) {
         setSavedRankingNotice({ movieId: movie.id, title: movie.title, position });
       }
+      // Saved, so there is nothing left to lose and no reason to ask.
+      setDiscarding(true);
+      allowClosing();
       router.back();
     }
   }
@@ -74,15 +80,15 @@ export default function RankScreen() {
         <View style={styles.row}>
           <View style={styles.grow}>
             <Button
-              label="Back"
+              label="Undo"
               variant="secondary"
-              accessibilityLabel="Back: undo your last answer"
+              accessibilityLabel="Undo your last answer"
               onPress={ranking.back}
               disabled={!ranking.canGoBack}
             />
           </View>
           <View style={styles.grow}>
-            <Button label="Cancel" variant="secondary" onPress={cancel} />
+            <Button label="Cancel" variant="secondary" onPress={() => router.back()} />
           </View>
         </View>
       </>
@@ -104,20 +110,31 @@ export default function RankScreen() {
             {below?.movie && <Neighbor label="Below it" rank={below.rank} movie={below.movie} />}
           </View>
         )}
+        <ThemedText type="smallBold" style={styles.center}>
+          Not saved yet. Press Save to keep this place.
+        </ThemedText>
         <Button label="Save" onPress={save} busy={ranking.saving} />
-        {ranking.canGoBack && (
-          <Button
-            label="Back"
-            variant="secondary"
-            accessibilityLabel="Back: undo your last answer"
-            onPress={ranking.back}
-            disabled={ranking.saving}
-          />
+        {(ranking.canGoBack || total > 1) && (
+        <View style={styles.row}>
+          {ranking.canGoBack && (
+            <View style={styles.grow}>
+              <Button
+                label="Undo"
+                variant="secondary"
+                accessibilityLabel="Undo your last answer"
+                onPress={ranking.back}
+                disabled={ranking.saving}
+              />
+            </View>
+          )}
+          {total > 1 && (
+            <View style={styles.grow}>
+              <Button label="Start over" variant="secondary" onPress={ranking.restart} disabled={ranking.saving} />
+            </View>
+          )}
+        </View>
         )}
-        {total > 1 && (
-          <Button label="Start over" variant="secondary" onPress={ranking.restart} disabled={ranking.saving} />
-        )}
-        <Button label="Cancel" variant="plain" onPress={cancel} disabled={ranking.saving} />
+        <Button label="Cancel" variant="plain" onPress={() => router.back()} disabled={ranking.saving} />
       </>
     );
   }
@@ -125,7 +142,15 @@ export default function RankScreen() {
   return (
     <ThemedView style={styles.fill}>
       {/* No swipe-to-close once there are answers, so a swipe can't silently throw them away. */}
-      <Stack.Screen options={{ title: previousPosition === null ? 'Rank' : 'Re-rank', gestureEnabled: !hasAnswers }} />
+      <Stack.Screen
+        options={{
+          title: previousPosition === null ? 'Rank' : 'Re-rank',
+          gestureEnabled: !hasAnswers,
+          // Screen readers announce the header arrow as "Close ranking, back".
+          headerBackTitle: 'Close ranking',
+          headerBackButtonDisplayMode: 'minimal',
+        }}
+      />
       <ScrollView contentContainerStyle={styles.content}>
         {ranking.saveError && <ErrorBanner message={ranking.saveError} />}
         {content}

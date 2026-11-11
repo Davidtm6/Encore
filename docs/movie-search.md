@@ -18,6 +18,8 @@ Search screen ──invoke('search-movies')──► Edge Function ──GET─�
 2. The function checks the token, so only signed-in users can search. It then asks TMDB:
    - `/search/movie` for a query, with adult results excluded;
    - `/movie/popular` when the query is empty.
+
+   If a query finds nothing, it looks for near matches; see [Misspelled searches](#misspelled-searches).
 3. It turns TMDB's results into `movies` rows and upserts them. The rows are keyed by `(provider, provider_movie_id)` = `('tmdb', <TMDB id>)`, so each film is stored once, and a repeat search refreshes its title, year, and poster.
 4. It returns the saved rows, with Encore's own `id`, in TMDB's order. The app needs that `id` to mark a movie watched, rank it, or review it.
 
@@ -38,6 +40,7 @@ Search screen ──invoke('search-movies')──► Edge Function ──GET─�
 | `supabase/functions/search-movies/index.ts` | The Edge Function: sign-in check, the TMDB request (5-second timeout), and the database calls |
 | `supabase/functions/search-movies/search.ts` | The search logic: reading the query, building the TMDB URL, saving, ordering, and the fallback. It has no Deno or Supabase code, so Jest tests it. |
 | `supabase/functions/search-movies/tmdb.ts` | Turning TMDB results into `movies` rows |
+| `supabase/functions/search-movies/typo.ts` | Near matches for a misspelled query: the looser queries to try, and which titles are close enough to suggest |
 | `supabase/config.toml` (`[functions.search-movies]`) | The function's settings, including `verify_jwt` |
 | `supabase/migrations/20261029000000_sample_films_to_tmdb.sql` | Gave the 50 starter films their TMDB IDs |
 | `supabase/migrations/20261029010000_starter_film_posters.sql` | Gave the 50 starter films their posters |
@@ -52,9 +55,23 @@ Search screen ──invoke('search-movies')──► Edge Function ──GET─�
 | Status | Body | When |
 | --- | --- | --- |
 | 200 | `{ "movies": [{ "id", "title", "release_year", "poster_url", "overview" }] }` | Normal results, in TMDB's order. `release_year`, `poster_url`, and `overview` can be `null`. `overview` is the start of TMDB's plot summary (up to 200 characters, cut at a word), which the Search screen shows to tell same-titled films apart. It's passed through from TMDB and not stored, so fallback results don't have it. |
-| 200 | `{ "movies": [...] }` from saved movies | TMDB failed; see below |
+| 200 | `{ "movies": [], "suggestions": [...] }` | The query found nothing, but some titles are close to it. `suggestions` has the same shape as `movies`, nearest first, at most 5. The Search screen lists them under "Did you mean". The key is left out when there are none. |
+| 200 | `{ "movies": [...], "fromSaved": true }` from saved movies | TMDB failed; see below. The Search screen says that live search isn't available and that these results have no plot summaries. |
 | 401 | An auth error | No valid signed-in token. The app shows "Your session expired." |
 | 502 | `{ "error": "Search isn’t available right now. Try again." }` | TMDB and the fallback both failed |
+
+## Misspelled searches
+
+TMDB has no spelling suggestions, but it matches the start of a word. So when a query finds nothing, the function:
+1. Retries with the last word shortened by one, two, and three letters (never below three letters), and with the last word dropped if there is more than one. "intersteller" becomes "interstelle", "interstell", and "interstel". That is at most 4 extra TMDB calls, sent together, and only for a search that found nothing.
+2. Compares each title it gets back with what was typed, by edit distance (the number of single-letter changes between them), ignoring case, accents, punctuation, and a leading "The", "A", or "An". A title that only starts like the query counts as slightly further away.
+3. Keeps the nearest 5 titles within about a third of the query's length, saves them like any other result, and returns them as `suggestions`.
+
+Limits:
+- **A typo near the start of the last word isn't caught.** "nterstellar" finds nothing, because no shortened version of it is the start of the real title.
+- **A typo in an earlier word is only caught by luck.** "dakr knight" tries "dakr knigh", "dakr knig", "dakr kni", and "dakr", none of which match.
+- **It depends on TMDB matching the start of a word.** The tests use a fake TMDB, so check after deploying that "intersteller" suggests Interstellar.
+- **Nothing is suggested while the fallback is running,** since there is no TMDB to ask.
 
 ## How movies are stored
 
@@ -80,7 +97,9 @@ The function tries to keep search working:
 | The phone can't reach Supabase | "Can't reach Encore. Check your connection and try again." |
 | The sign-in has expired | "Your session expired. Sign out and sign back in." |
 
-A fallback is easy to miss, because search still returns results. To check, look at the logs, described below.
+The app says when the fallback is running: above the results it shows "Live search isn’t available right now, so these are only movies already saved in Encore, without plot summaries." The reason is in the logs, described below.
+
+A failure while looking for near matches never fails the search; the user just gets "No movies match" without suggestions.
 
 ## Running it
 
@@ -103,7 +122,7 @@ If the token leaks, generate a new one in TMDB's API settings and set it again.
 ```sh
 npx supabase functions deploy search-movies --use-api
 ```
-`--use-api` bundles on Supabase's servers, so Docker isn't needed. Deploy only after the pull request with the change merges, the same rule as migrations. The deploy uploads `index.ts` and the files it imports; the `*.test.ts` files stay out.
+`--use-api` bundles on Supabase's servers, so Docker isn't needed. Deploy only after the pull request with the change merges, the same rule as migrations, and then deploy promptly: until then testers keep seeing the old behavior. To see which version is live, run `npx supabase functions list`; it shows the version number and when it was last updated, which should be after the merge. The deploy uploads `index.ts` and the files it imports; the `*.test.ts` files stay out.
 
 **See what it's doing:** open the dashboard, then **Edge Functions → search-movies**.
 - **Logs** shows `console.error` output, such as "TMDB search failed; searching saved movies instead." with the reason.
@@ -126,6 +145,7 @@ The About screen (`app/src/app/about.tsx`, opened from My List) covers all three
 | --- | --- |
 | `supabase/functions/search-movies/search.test.ts` | The function's logic with fake TMDB and database calls: the query, the URL, saving and ordering, and every fallback |
 | `supabase/functions/search-movies/tmdb.test.ts` | How TMDB results become rows |
+| `supabase/functions/search-movies/typo.test.ts` | The looser queries for a misspelled search, and which titles are close enough to suggest |
 | `app/src/services/search-error.test.ts` | The error messages Search shows |
 | `supabase/tests/starter-catalog.test.ts` | That the seed, both TMDB migrations, and the demo script agree on the same 50 films and posters |
 | `supabase/tests/database/tmdb-migrations.test.sql` | Both migrations on the shared database's old state |
@@ -135,10 +155,11 @@ The About screen (`app/src/app/about.tsx`, opened from My List) covers all three
 Run them with `npm test`, `npm run test:db`, and `npm run check:functions`; CI runs all of them on every pull request.
 
 What the tests can't check is the deployed function talking to the real TMDB and the real database. After deploying, check by hand in Expo Go:
-1. Search for "parasite": the results show posters.
-2. Clear the search box: "Popular right now" appears.
-3. Mark a new result watched, then rank and review it.
-4. Open My List → **About**: the logo and notice show.
+1. Search for "parasite": the results show posters and a plot line under each title.
+2. Search for "intersteller": Interstellar appears under "Did you mean".
+3. Clear the search box: "Popular right now" appears.
+4. Mark a new result watched, then rank and review it.
+5. Open My List → **About**: the logo and notice show.
 
 ## Changing it
 
@@ -156,6 +177,8 @@ What the tests can't check is the deployed function talking to the real TMDB and
 
 | Symptom | Likely cause | Fix |
 | --- | --- | --- |
+| Results have no plot line under the title, and no "saved movies" notice shows | The deployed function is older than the code on `main` | Check `npx supabase functions list`, then redeploy |
+| A misspelled search never shows "Did you mean" | The same, or the typo is one this can't catch (see [Misspelled searches](#misspelled-searches)) | Redeploy, then try "intersteller" |
 | Every search says "Search isn’t available" | The function isn't deployed, or both TMDB and the database fail | Deploy it, then check the logs |
 | Search works but new films never appear, and the empty search isn't TMDB's popular list | The fallback is running: TMDB is failing | Check the logs. A missing or rejected token means setting `TMDB_READ_ACCESS_TOKEN` again. |
 | Everyone gets "Your session expired" or "Invalid JWT" | The platform JWT check | Set `verify_jwt = false` for `search-movies` in `supabase/config.toml` and redeploy |
