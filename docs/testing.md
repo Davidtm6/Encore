@@ -8,7 +8,7 @@ Encore has three kinds of automated checks. GitHub Actions runs all of them on e
 | Database tests | `psql` against a throwaway Postgres | The migrations, seed, and demo script, sign-up, `save_ranking`, and who can see or change what (row-level security) |
 | Static checks | `tsc`, ESLint, and `deno check` | Type errors and hook mistakes in the app, and type errors in the Edge Function |
 
-The Python ranking prototype keeps its own `unittest` suite, which CI also runs. Screens are still checked by hand, following the demo script in [setup](setup.md#demo-script).
+The Python ranking prototype keeps its own `unittest` suite, which CI also runs. One Jest test calls the real TMDB when a token is set; see [the TMDB format test](#the-tmdb-format-test). Screens are still checked by hand, following the demo script in [setup](setup.md#demo-script).
 
 ## Run the tests
 
@@ -60,6 +60,14 @@ npm run test:db
 
 The runner connects with the usual `PG*` variables (`PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`). With none set, `psql` uses the local server and your login name, which is what Homebrew sets up. Each test file gets its own database, `encore_test_<name>`, which is dropped afterwards. If you don't have Postgres, CI runs these tests on every pull request.
 
+### The TMDB format test
+
+`tmdb-contract.test.ts` calls TMDB's search endpoint, so it needs TMDB's **API Read Access Token**. Without `TMDB_READ_ACCESS_TOKEN` set, Jest skips it, so `npm test` works without a token. To run it, enter the token at the silent prompt, which keeps it out of your shell history:
+
+```sh
+read -s TMDB_READ_ACCESS_TOKEN && export TMDB_READ_ACCESS_TOKEN && npm test -- tmdb-contract
+```
+
 ## What is tested
 
 | Suite | Covers |
@@ -70,6 +78,7 @@ The runner connects with the usual `PG*` variables (`PGHOST`, `PGPORT`, `PGUSER`
 | `supabase/functions/search-movies/search.test.ts` | The search function's logic with fake TMDB and database calls. It covers reading the query (trimmed, capped at 100 characters), the TMDB URL (no adult results; popular movies for an empty query), saving results and returning them in TMDB's order with their overviews, near-match suggestions for a query that finds nothing, and the fallbacks: saved movies (marked `fromSaved`) when TMDB or saving fails, an error only when that fails too |
 | `supabase/functions/search-movies/typo.test.ts` | Typo tolerance: the looser queries tried for a misspelled search, edit distance, and which titles are close enough to suggest, nearest first |
 | `supabase/functions/search-movies/tmdb.test.ts` | How TMDB results become `movies` rows: year and poster parsing; dropping adult, untitled, and repeated results while keeping TMDB's order; trimming overviews; escaping search wildcards |
+| `supabase/functions/search-movies/tmdb-contract.test.ts` | That TMDB's live search response still has the fields the search function reads (`id`, `title`, `release_date`, `poster_path`, `overview`, `adult`), checked on one known film. It skips when `TMDB_READ_ACCESS_TOKEN` isn't set |
 | `supabase/tests/starter-catalog.test.ts` | That `seed.sql`, the two TMDB migrations, and the demo script agree on the same 50 films, TMDB IDs, and posters |
 | `supabase/tests/database/ranking-and-access.test.sql` | Sign-up creating profiles, marking movies watched, `save_ranking` (including every rejection), reviews, and what another user or a signed-out user can and can't do |
 | `supabase/tests/database/remove-watched.test.sql` | Removing a movie from the watched list: the ranking closes up (including several removals at once), the review goes too, and nobody can remove another user's movies |
@@ -120,11 +129,12 @@ For the Python prototype, add `test_*` methods to `prototype/test_ranking.py`, o
 
 ## Continuous integration
 
-The workflow is [`.github/workflows/ci.yml`](../.github/workflows/ci.yml). It has six jobs:
+The workflow is [`.github/workflows/ci.yml`](../.github/workflows/ci.yml). It has seven jobs:
 
 | Job | What it runs |
 | --- | --- |
-| Jest (TypeScript) | `npm ci`, then `npm test -- --ci` |
+| Jest (TypeScript) | `npm ci`, then `npm test -- --ci`. It has no TMDB token, so it skips the TMDB format test |
+| TMDB format | `npm ci`, then `npm test -- --ci tmdb-contract` with the `TMDB_READ_ACCESS_TOKEN` repository secret |
 | App (typecheck and lint) | In `app/`: `npm ci`, `npm run typecheck`, `npm run lint` |
 | Build (npm run build) | `npm ci --prefix app`, then the README's `npm run build` |
 | Database (migrations and access rules) | `supabase/tests/run-database-tests.sh` against a Postgres 17 service container |
@@ -133,7 +143,9 @@ The workflow is [`.github/workflows/ci.yml`](../.github/workflows/ci.yml). It ha
 
 Results appear in the **Checks** section of each pull request and on the repository's **Actions** tab. To see why a job failed, open it and expand the failed step; the output matches what the same command prints locally.
 
-The "Protect main" ruleset (**Settings → Rules → Rulesets**) blocks merging until the Jest, App, Database, and Edge Function jobs pass. Build and Python prototype run but aren't required: Build repeats the App and Edge Function checks, and the prototype may be removed. To require another job, a repository admin adds it under **Require status checks to pass**. Add it only after it has run on a pull request at least once, and never require a job that might be deleted, or every PR will wait for it forever.
+The "Protect main" ruleset (**Settings → Rules → Rulesets**) blocks merging until the Jest, App, Database, and Edge Function jobs pass. Build, Python prototype, and TMDB format run but aren't required: Build repeats the App and Edge Function checks, the prototype may be removed, and a TMDB outage shouldn't block merges. To require another job, a repository admin adds it under **Require status checks to pass**. Add it only after it has run on a pull request at least once, and never require a job that might be deleted, or every PR will wait for it forever.
+
+The TMDB format job is green even when its test is skipped, which happens when the secret is missing, for example on pull requests from forks. To confirm the test ran, open the job's log. A repository admin sets the secret with `gh secret set TMDB_READ_ACCESS_TOKEN --repo Davidtm6/Encore`, which prompts for the value.
 
 Add a root dependency with `npm install --save-dev <package>` and commit both `package.json` and `package-lock.json`; CI installs exactly what the lockfile lists. In `app/`, add packages with `npx expo install <package>` so the version matches the Expo SDK.
 

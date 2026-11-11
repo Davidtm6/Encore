@@ -193,9 +193,9 @@ We test every MVP use case (UC1–5), including its exceptions, and every non-fu
 - **Framework:** Jest with `ts-jest`. Jest is Expo's default and works with React Native Testing Library.
 - **Adding a test:** create a `*.test.ts` file next to the code and run `npm test`. Jest finds it automatically. See `docs/testing.md`.
 - **CI:** GitHub Actions runs `.github/workflows/ci.yml`. We chose it because the code and reviews are already on GitHub, and results show on the pull request.
-- **What CI runs:** all Jest unit tests, the database tests, app type-checking and lint, a type check of the `search-movies` Edge Function, and the Python prototype's tests. Maestro, accessibility, and usability tests run outside CI (see below).
-- **Triggers:** opening or updating a pull request, and every push to `main`. A failing test blocks the merge.
-- **Protecting `main`:** the "Protect main" repository ruleset requires a pull request and the Jest, app, database, and Edge Function checks to pass before merging, and it blocks force-pushes and deleting the branch. It requires no approvals, so authors can merge their own PRs. The one review per PR in our process is a team rule that GitHub doesn't enforce. The Python prototype check isn't required, so the prototype can be removed without blocking merges.
+- **What CI runs:** all Jest unit tests, the database tests, app type-checking and lint, a type check of the `search-movies` Edge Function, a check of TMDB's live response format, and the Python prototype's tests. Maestro, accessibility, and usability tests run outside CI (see below).
+- **Triggers:** opening or updating a pull request, and every push to `main`. A failing required check blocks the merge.
+- **Protecting `main`:** the "Protect main" repository ruleset requires a pull request and the Jest, app, database, and Edge Function checks to pass before merging, and it blocks force-pushes and deleting the branch. It requires no approvals, so authors can merge their own PRs. The one review per PR in our process is a team rule that GitHub doesn't enforce. The Python prototype check isn't required, so the prototype can be removed without blocking merges. The TMDB format check isn't required either, so a TMDB outage can't block merges.
 
 #### Suites
 
