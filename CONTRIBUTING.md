@@ -52,6 +52,7 @@ Keep one change per branch, and delete the branch after it merges.
 - **Docs:** any PR that changes setup or behavior updates the relevant doc in `README.md` or `docs/`.
 - **Review:** every PR gets one review from a teammate before merging. This is a team rule; GitHub doesn't enforce it.
 - **Merging:** use the merge button once checks pass. Keep the branch up to date with `main` if it falls behind.
+- **After merging:** a change under `supabase/functions/` is live only after the function is redeployed, and a migration only after it is pushed. The pull request template has a checklist for this; fill it in, and check the change in the running app once it's applied. Both steps need Supabase access (see [movie search](docs/movie-search.md#running-it) and [Changing the schema](docs/setup.md#changing-the-schema)).
 
 ### What GitHub enforces on `main`
 

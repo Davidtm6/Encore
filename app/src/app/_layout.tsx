@@ -52,7 +52,8 @@ function RootStack() {
         <Stack.Screen name="sign-in" options={{ headerShown: false }} />
       </Stack.Protected>
       <Stack.Protected guard={!!session}>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        {/* The title is what screen readers call the back arrow on the screens below: "Encore, back". */}
+        <Stack.Screen name="(tabs)" options={{ headerShown: false, title: 'Encore' }} />
         <Stack.Screen name="rank/[movieId]" options={{ presentation: 'modal', title: 'Rank' }} />
         <Stack.Screen name="review/[movieId]" options={{ presentation: 'modal', title: 'Review' }} />
         <Stack.Screen name="about" options={{ presentation: 'modal', title: 'About' }} />

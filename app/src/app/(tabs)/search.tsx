@@ -23,7 +23,10 @@ function openRank(movie: Movie) {
 
 export default function SearchScreen() {
   const theme = useTheme();
-  const { query, setQuery, results, loading, error, retry } = useMovieSearch();
+  const { query, setQuery, results, suggestions, fromSaved, searchedQuery, loading, error, retry } = useMovieSearch();
+  // A search that found nothing lists its near matches instead.
+  const didYouMean = results.length === 0 && suggestions.length > 0;
+  const shown = didYouMean ? suggestions : results;
   const { ranked, watchedIds, reload } = useMyMovies();
   const rankedIds = new Set(ranked.map((m) => m.movie.id));
   const [adding, setAdding] = useState<number | null>(null);
@@ -127,23 +130,46 @@ export default function SearchScreen() {
         />
         {error && <ErrorBanner message={error} onRetry={retry} />}
         <FlatList
-          data={results}
+          data={shown}
           keyExtractor={(movie) => String(movie.id)}
           renderItem={renderMovie}
           ItemSeparatorComponent={ListSeparator}
+          // The last results stay up, dimmed, while the next search loads.
+          style={loading && shown.length > 0 ? styles.stale : undefined}
           ListHeaderComponent={
-            loading ? (
-              <ActivityIndicator style={styles.loading} />
-            ) : !query.trim() && results.length > 0 ? (
-              <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionTitle}>
-                Popular right now
-              </ThemedText>
-            ) : undefined
+            <View style={styles.header}>
+              {loading && (
+                <View style={styles.searching} accessibilityLiveRegion="polite">
+                  <ActivityIndicator />
+                  <ThemedText type="small" themeColor="textSecondary">
+                    {query.trim() ? `Searching for “${query.trim()}”…` : 'Loading popular movies…'}
+                  </ThemedText>
+                </View>
+              )}
+              {didYouMean && (
+                <ThemedText themeColor="textSecondary">No movies match “{searchedQuery}”.</ThemedText>
+              )}
+              {fromSaved && shown.length > 0 && (
+                <ThemedText type="small" themeColor="textSecondary">
+                  Live search isn’t available right now, so these are only movies already saved in Encore, without
+                  plot summaries.
+                </ThemedText>
+              )}
+              {didYouMean ? (
+                <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionTitle}>
+                  Did you mean
+                </ThemedText>
+              ) : !searchedQuery && shown.length > 0 && !fromSaved ? (
+                <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionTitle}>
+                  Popular right now
+                </ThemedText>
+              ) : null}
+            </View>
           }
           ListEmptyComponent={
             loading || error ? undefined : (
               <View style={styles.empty}>
-                <ThemedText themeColor="textSecondary">No movies match “{query.trim()}”.</ThemedText>
+                <ThemedText themeColor="textSecondary">No movies match “{searchedQuery}”.</ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">
                   Check the spelling, or try fewer or different words from the title.
                 </ThemedText>
@@ -186,8 +212,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     fontSize: 16,
   },
-  loading: {
-    marginBottom: Spacing.three,
+  header: {
+    gap: Spacing.two,
+  },
+  searching: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    marginBottom: Spacing.one,
+  },
+  stale: {
+    opacity: 0.5,
   },
   empty: {
     gap: Spacing.two,

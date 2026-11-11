@@ -19,7 +19,7 @@ import { listMyMovies } from '@/services/watched-service';
 export function useRanking(movieId: number) {
   const [movies, setMovies] = useState<Map<number, Movie>>(new Map());
   const [ranked, setRanked] = useState<number[]>([]);
-  // The current session plus every earlier one, so Back can undo an answer.
+  // The current session plus every earlier one, so Undo can take back an answer.
   // Sessions are immutable, so keeping them is all undo needs.
   const [steps, setSteps] = useState<RankingSession<number>[]>([]);
   const session = steps.at(-1) ?? null;
