@@ -106,7 +106,7 @@ For a longer list to rank against, [Prepare a demo account](docs/setup.md#4-prep
 | Movie search | Supabase Edge Function `search-movies` (Deno, TypeScript) | Checks the login token, queries TMDB, saves the results to `movies`, and falls back to saved films if TMDB fails. |
 | Movie data | TMDB | Titles, years, and posters. Only the Edge Function calls it. |
 | Database | Supabase Postgres | Profiles, movies, watched lists with rank positions, and reviews. Row-level security on every table and the `save_ranking` function enforce that people can only change their own data. |
-| CI | GitHub Actions | Build, Jest, database tests, and the Python prototype on every pull request. |
+| CI | GitHub Actions | Build, Jest, database tests, a TMDB format check, and the Python prototype on every pull request. |
 
 The app calls Supabase directly with the publishable key, so the security boundary is the database's access rules, not app code. A separate Encore API server (`server/`, Node.js) is deferred until the server-side ranking re-check and rate limits need it; when it arrives, only `app/src/services/` changes. The [living document](docs/living-document.md#7-software-architecture) has the diagram and the reasons.
 

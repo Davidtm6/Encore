@@ -58,7 +58,7 @@ Keep one change per branch, and delete the branch after it merges.
 
 The "Protect main" ruleset applies to everyone, including admins:
 - Changes reach `main` only through a pull request. No direct pushes.
-- These CI checks must pass before merging: `Jest (TypeScript)`, `App (typecheck and lint)`, `Database (migrations and access rules)`, and `Edge Function (type check)`. The `Build (npm run build)` and `Python prototype` jobs also run, but aren't required.
+- These CI checks must pass before merging: `Jest (TypeScript)`, `App (typecheck and lint)`, `Database (migrations and access rules)`, and `Edge Function (type check)`. The `Build (npm run build)`, `Python prototype`, and `TMDB format` jobs also run, but aren't required.
 - Force-pushes to `main` and deleting `main` are blocked.
 
 CI runs on every pull request and every push to `main`; see [testing](docs/testing.md).

@@ -24,7 +24,7 @@ python3 -m unittest discover -s prototype -v   # Python ranking prototype
 
 From `app/`: `npm run typecheck` and `npm run lint` (`expo lint`). Add app packages with `npx expo install <pkg>` so versions match the Expo SDK.
 
-CI (`.github/workflows/ci.yml`) runs Jest, app typecheck+lint, `npm run build`, database tests (Postgres 17), Edge Function check, and the Python prototype. The `main` ruleset requires a PR and the Jest, App, Database, and Edge Function checks to pass. Branch, commit, PR, and bug conventions are in `CONTRIBUTING.md`.
+CI (`.github/workflows/ci.yml`) runs Jest, app typecheck+lint, `npm run build`, database tests (Postgres 17), Edge Function check, a live TMDB format check (not required; skips without a token), and the Python prototype. The `main` ruleset requires a PR and the Jest, App, Database, and Edge Function checks to pass. Branch, commit, PR, and bug conventions are in `CONTRIBUTING.md`.
 
 ## Architecture
 
