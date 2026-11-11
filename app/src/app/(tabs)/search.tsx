@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, StyleSheet, TextInput } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/button';
@@ -14,8 +14,8 @@ import { useMovieSearch } from '@/hooks/use-movie-search';
 import { useMyMovies } from '@/hooks/use-my-movies';
 import { useTheme } from '@/hooks/use-theme';
 import { messageOf } from '@/services/errors';
-import type { Movie } from '@/services/movie-service';
-import { markWatched } from '@/services/watched-service';
+import type { Movie, SearchResult } from '@/services/movie-service';
+import { markWatched, removeWatched } from '@/services/watched-service';
 
 function openRank(movie: Movie) {
   router.push({ pathname: '/rank/[movieId]', params: { movieId: String(movie.id) } });
@@ -27,11 +27,16 @@ export default function SearchScreen() {
   const { ranked, watchedIds, reload } = useMyMovies();
   const rankedIds = new Set(ranked.map((m) => m.movie.id));
   const [adding, setAdding] = useState<number | null>(null);
+  // Movies added from this screen, which can be taken back out with Undo until they're ranked.
+  const [justAdded, setJustAdded] = useState<ReadonlySet<number>>(new Set());
 
   async function add(movie: Movie) {
     setAdding(movie.id);
     try {
       const added = await markWatched(movie.id);
+      if (added) {
+        setJustAdded((ids) => new Set(ids).add(movie.id));
+      }
       await reload();
       Alert.alert(added ? `Added ${movie.title}` : `${movie.title} is already in your list`, 'Rank it now?', [
         { text: 'Later', style: 'cancel' },
@@ -44,14 +49,44 @@ export default function SearchScreen() {
     }
   }
 
-  function renderMovie({ item: movie }: { item: Movie }) {
+  async function undo(movie: Movie) {
+    setAdding(movie.id);
+    try {
+      await removeWatched(movie.id);
+      setJustAdded((ids) => {
+        const next = new Set(ids);
+        next.delete(movie.id);
+        return next;
+      });
+      await reload();
+    } catch (e) {
+      Alert.alert('Couldn’t remove the movie', messageOf(e));
+    } finally {
+      setAdding(null);
+    }
+  }
+
+  function renderMovie({ item: movie }: { item: SearchResult }) {
     if (watchedIds.has(movie.id)) {
-      const label = rankedIds.has(movie.id) ? 'Re-rank' : 'Rank';
+      const isRanked = rankedIds.has(movie.id);
+      const label = isRanked ? 'Re-rank' : 'Rank';
       return (
-        <MovieCard movie={movie} note={rankedIds.has(movie.id) ? 'Ranked' : 'In your list'}>
+        <MovieCard movie={movie} note={isRanked ? 'Ranked' : 'In your list'} description={movie.overview}>
+          {!isRanked && justAdded.has(movie.id) && (
+            <Button
+              size="small"
+              variant="plain"
+              label="Undo"
+              accessibilityLabel={`Undo marking ${movie.title} watched`}
+              busy={adding === movie.id}
+              disabled={adding !== null}
+              onPress={() => undo(movie)}
+            />
+          )}
           <Button
             size="small"
-            variant="secondary"
+            // Ranking is the next step for an unranked film, so it gets the filled style.
+            variant={isRanked ? 'secondary' : 'primary'}
             label={label}
             accessibilityLabel={`${label} ${movie.title}`}
             onPress={() => openRank(movie)}
@@ -60,7 +95,7 @@ export default function SearchScreen() {
       );
     }
     return (
-      <MovieCard movie={movie}>
+      <MovieCard movie={movie} description={movie.overview}>
         <Button
           size="small"
           label="Mark watched"
@@ -107,7 +142,13 @@ export default function SearchScreen() {
           }
           ListEmptyComponent={
             loading || error ? undefined : (
-              <ThemedText themeColor="textSecondary">No movies match “{query.trim()}”.</ThemedText>
+              <View style={styles.empty}>
+                <ThemedText themeColor="textSecondary">No movies match “{query.trim()}”.</ThemedText>
+                <ThemedText type="small" themeColor="textSecondary">
+                  Check the spelling, or try fewer or different words from the title.
+                </ThemedText>
+                <Button label="Clear search" variant="secondary" size="small" onPress={() => setQuery('')} />
+              </View>
             )
           }
           keyboardShouldPersistTaps="handled"
@@ -147,6 +188,10 @@ const styles = StyleSheet.create({
   },
   loading: {
     marginBottom: Spacing.three,
+  },
+  empty: {
+    gap: Spacing.two,
+    alignItems: 'flex-start',
   },
   list: {
     paddingBottom: BottomTabInset + Spacing.three,

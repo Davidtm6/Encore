@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
 
 import { messageOf } from '@/services/errors';
-import { searchMovies, type Movie } from '@/services/movie-service';
+import { searchMovies, type SearchResult } from '@/services/movie-service';
 
 // Each search calls TMDB, so wait for a short pause in typing.
 const DEBOUNCE_MS = 400;
 
 export function useMovieSearch() {
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<Movie[]>([]);
+  const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);

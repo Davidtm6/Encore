@@ -64,12 +64,14 @@ The runner connects with the usual `PG*` variables (`PGHOST`, `PGPORT`, `PGUSER`
 
 | Suite | Covers |
 | --- | --- |
-| `app/src/ranking/ranking-session.test.ts` | The ranking engine used by the Rank screen: first movie, every insertion position for lists of 0–128 films within `ceil(log2(n + 1))` comparisons, cancel leaving the list unchanged, and re-rank keeping other movies in order |
+| `app/src/ranking/ranking-session.test.ts` | The ranking engine used by the Rank screen: first movie, every insertion position for lists of 0–128 films within `ceil(log2(n + 1))` comparisons, cancel leaving the list unchanged, re-rank keeping other movies in order, the "Question 2 of up to 4" count never promising too few, going back a step, and the films above and below the new place |
+| `app/src/services/auth-validation.test.ts` | The sign-in and sign-up form rules, and that every invalid field is reported at once |
 | `app/src/services/search-error.test.ts` | The message Search shows when the search function fails: offline, expired session (401), the function's own error, and anything else |
-| `supabase/functions/search-movies/search.test.ts` | The search function's logic with fake TMDB and database calls. It covers reading the query (trimmed, capped at 100 characters), the TMDB URL (no adult results; popular movies for an empty query), saving results and returning them in TMDB's order, and the fallbacks: saved movies when TMDB or saving fails, an error only when that fails too |
-| `supabase/functions/search-movies/tmdb.test.ts` | How TMDB results become `movies` rows: year and poster parsing; dropping adult, untitled, and repeated results while keeping TMDB's order; escaping search wildcards |
+| `supabase/functions/search-movies/search.test.ts` | The search function's logic with fake TMDB and database calls. It covers reading the query (trimmed, capped at 100 characters), the TMDB URL (no adult results; popular movies for an empty query), saving results and returning them in TMDB's order with their overviews, and the fallbacks: saved movies when TMDB or saving fails, an error only when that fails too |
+| `supabase/functions/search-movies/tmdb.test.ts` | How TMDB results become `movies` rows: year and poster parsing; dropping adult, untitled, and repeated results while keeping TMDB's order; trimming overviews; escaping search wildcards |
 | `supabase/tests/starter-catalog.test.ts` | That `seed.sql`, the two TMDB migrations, and the demo script agree on the same 50 films, TMDB IDs, and posters |
 | `supabase/tests/database/ranking-and-access.test.sql` | Sign-up creating profiles, marking movies watched, `save_ranking` (including every rejection), reviews, and what another user or a signed-out user can and can't do |
+| `supabase/tests/database/remove-watched.test.sql` | Removing a movie from the watched list: the ranking closes up (including several removals at once), the review goes too, and nobody can remove another user's movies |
 | `supabase/tests/database/starter-catalog.test.sql` | The seed and demo script on a fresh database, both safe to rerun, and the TMDB migrations being no-ops there |
 | `supabase/tests/database/tmdb-migrations.test.sql` | Both TMDB migrations on the shared database's old state: films relabeled with row ids kept, lists, rankings, and reviews untouched, a film search already saved left alone, and posters filled only where missing |
 | `prototype/ranking.test.ts` and `prototype/test_ranking.py` | The reference binary-insertion prototypes |
