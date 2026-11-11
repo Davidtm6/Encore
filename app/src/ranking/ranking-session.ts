@@ -37,6 +37,23 @@ export function choose<T>(session: RankingSession<T>, preferNew: boolean): Ranki
   return preferNew ? { ...session, high: mid } : { ...session, low: mid + 1 };
 }
 
+/**
+ * The most comparisons still needed: the movie has high - low + 1 possible
+ * places left, and each answer halves them. The real count can be one lower.
+ */
+export function comparisonsLeft<T>(session: RankingSession<T>): number {
+  return isDone(session) ? 0 : Math.ceil(Math.log2(session.high - session.low + 1));
+}
+
+/** The movies just above and below the movie's new place, once it is known. */
+export function neighbors<T>(session: RankingSession<T>): { above?: T; below?: T } {
+  if (!isDone(session)) {
+    throw new Error('This ranking still needs answers.');
+  }
+  const { others, low } = session;
+  return { above: low > 0 ? others[low - 1] : undefined, below: others[low] };
+}
+
 /** The full best-first order with the movie in its new place. */
 export function finalOrder<T>(session: RankingSession<T>): T[] {
   if (!isDone(session)) {

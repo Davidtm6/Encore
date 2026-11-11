@@ -37,3 +37,16 @@ export async function markWatched(movieId: number): Promise<boolean> {
   }
   return true;
 }
+
+/**
+ * Takes a movie out of the watched list, along with its rank and review. The
+ * database closes the gap in the ranking in the same statement (see
+ * close_rank_gaps in supabase/migrations), and RLS limits this to the
+ * signed-in user's own rows.
+ */
+export async function removeWatched(movieId: number): Promise<void> {
+  const { error } = await supabase.from('watched_movies').delete().eq('movie_id', movieId);
+  if (error) {
+    throw userError(error, 'That movie couldn’t be removed. Try again.');
+  }
+}

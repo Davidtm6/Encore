@@ -3,23 +3,6 @@ import type { AuthError } from '@supabase/supabase-js';
 import { userError } from '@/services/errors';
 import { supabase } from '@/services/supabase';
 
-const USERNAME = /^[A-Za-z0-9_]{3,30}$/;
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-/** Returns a message for the first invalid field, or null when the form can be sent. */
-export function validateCredentials(email: string, password: string, username?: string): string | null {
-  if (username !== undefined && !USERNAME.test(username)) {
-    return 'Usernames are 3–30 letters, numbers, or underscores.';
-  }
-  if (!EMAIL.test(email)) {
-    return 'Enter a valid email address.';
-  }
-  if (password.length < 6) {
-    return 'Passwords need at least 6 characters.';
-  }
-  return null;
-}
-
 /** Creates the account. Returns false when the project requires email confirmation before sign-in. */
 export async function signUp(email: string, password: string, username: string): Promise<boolean> {
   const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { username } } });

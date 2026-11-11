@@ -12,7 +12,25 @@ export interface TmdbMovie {
   title?: string;
   release_date?: string;
   poster_path?: string | null;
+  overview?: string;
   adult?: boolean;
+}
+
+/** Longest overview sent to the app, which shows the first two lines to tell similar films apart. */
+export const MAX_OVERVIEW_LENGTH = 200;
+
+/** TMDB's plot summary trimmed for a result row, cut at a word, or null when there is none. */
+export function shortOverview(overview: string | undefined): string | null {
+  const text = overview?.trim().replace(/\s+/g, ' ');
+  if (!text) {
+    return null;
+  }
+  if (text.length <= MAX_OVERVIEW_LENGTH) {
+    return text;
+  }
+  const cut = text.slice(0, MAX_OVERVIEW_LENGTH);
+  const lastSpace = cut.lastIndexOf(' ');
+  return `${(lastSpace > 0 ? cut.slice(0, lastSpace) : cut).replace(/[\s,.;:]+$/, '')}…`;
 }
 
 export interface MovieRow {

@@ -5,14 +5,17 @@ import type { Tables } from '@/types/database';
 
 export type Movie = Pick<Tables<'movies'>, 'id' | 'title' | 'release_year' | 'poster_url'>;
 
+/** A search result: a movie plus the start of TMDB's plot summary, when TMDB answered. */
+export type SearchResult = Movie & { overview?: string | null };
+
 export const MOVIE_FIELDS = 'id, title, release_year, poster_url';
 
 /**
  * Searches TMDB through the search-movies Edge Function, which saves the results
  * so they can be marked watched. An empty query returns TMDB's popular movies.
  */
-export async function searchMovies(query: string): Promise<Movie[]> {
-  const { data, error } = await supabase.functions.invoke<{ movies: Movie[] }>('search-movies', {
+export async function searchMovies(query: string): Promise<SearchResult[]> {
+  const { data, error } = await supabase.functions.invoke<{ movies: SearchResult[] }>('search-movies', {
     body: { query: query.trim() },
   });
   if (error) {

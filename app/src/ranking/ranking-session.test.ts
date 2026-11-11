@@ -1,7 +1,9 @@
 import {
   choose,
+  comparisonsLeft,
   finalOrder,
   isDone,
+  neighbors,
   nextOpponent,
   startRanking,
   type RankingSession,
@@ -59,6 +61,67 @@ describe('ranking session', () => {
 
   it('rejects the final order before the position is known', () => {
     expect(() => finalOrder(startRanking(['A'], 'B'))).toThrow('still needs answers');
+  });
+});
+
+describe('progress (#51)', () => {
+  it('never says fewer comparisons are left than are actually asked', () => {
+    for (let size = 0; size <= 64; size++) {
+      const ranked = Array.from({ length: size }, (_, i) => i);
+      for (let desired = 0; desired <= size; desired++) {
+        let session: RankingSession<number> = startRanking(ranked, -1);
+        let asked = 0;
+        const promised = comparisonsLeft(session);
+        for (let opponent = nextOpponent(session); opponent !== undefined; opponent = nextOpponent(session)) {
+          // Each answer uses up at least one of the comparisons promised before it.
+          const before = comparisonsLeft(session);
+          session = choose(session, desired <= session.others.indexOf(opponent));
+          asked++;
+          expect(comparisonsLeft(session)).toBeLessThanOrEqual(before - 1);
+        }
+
+        expect(asked).toBeLessThanOrEqual(promised);
+        expect(comparisonsLeft(session)).toBe(0);
+      }
+    }
+  });
+
+  it('starts at ceil(log2(n + 1))', () => {
+    expect(comparisonsLeft(startRanking([], 'A'))).toBe(0);
+    expect(comparisonsLeft(startRanking(['A'], 'B'))).toBe(1);
+    expect(comparisonsLeft(startRanking(Array.from({ length: 10 }, (_, i) => i), -1))).toBe(4);
+  });
+
+  it('can go back a step by keeping the earlier session', () => {
+    const start = startRanking(['A', 'B', 'C'], 'D');
+    const wrong = choose(start, false);
+
+    // The hook keeps `start`; going back means using it again.
+    expect(nextOpponent(wrong)).toBe('C');
+    expect(nextOpponent(start)).toBe('B');
+    expect(finalOrder(choose(choose(start, true), true))).toEqual(['D', 'A', 'B', 'C']);
+  });
+});
+
+describe('neighbors', () => {
+  it('names the movies directly above and below the new place', () => {
+    const session = choose(choose(startRanking(['A', 'B', 'C'], 'D'), true), false);
+
+    expect(finalOrder(session)).toEqual(['A', 'D', 'B', 'C']);
+    expect(neighbors(session)).toEqual({ above: 'A', below: 'B' });
+  });
+
+  it('has nothing above a new number one or below a new last place', () => {
+    const top = choose(choose(startRanking(['A', 'B'], 'C'), true), true);
+    const bottom = choose(startRanking(['A', 'B'], 'C'), false);
+
+    expect(neighbors(top)).toEqual({ above: undefined, below: 'A' });
+    expect(neighbors(bottom)).toEqual({ above: 'B', below: undefined });
+    expect(neighbors(startRanking([], 'A'))).toEqual({ above: undefined, below: undefined });
+  });
+
+  it('is only known once the ranking is finished', () => {
+    expect(() => neighbors(startRanking(['A'], 'B'))).toThrow('still needs answers');
   });
 });
 
