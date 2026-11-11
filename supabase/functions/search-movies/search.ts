@@ -3,7 +3,7 @@
  * index.ts passes in the real TMDB and database calls.
  */
 
-import { type MovieRow, type TmdbMovie, toMovieRows } from './tmdb.ts';
+import { type MovieRow, shortOverview, type TmdbMovie, toMovieRows } from './tmdb.ts';
 
 export const TMDB_API = 'https://api.themoviedb.org/3';
 export const MAX_QUERY_LENGTH = 100;
@@ -15,6 +15,11 @@ export interface Movie {
   title: string;
   release_year: number | null;
   poster_url: string | null;
+  /**
+   * The start of TMDB's plot summary, so similar titles can be told apart.
+   * Passed through from TMDB, not stored, so fallback results have none.
+   */
+  overview?: string | null;
 }
 
 /** What searchMovies needs from the outside world. */
@@ -59,12 +64,19 @@ export function tmdbResults(response: unknown): TmdbMovie[] {
  */
 export async function searchMovies(query: string, deps: SearchDeps): Promise<SearchResult> {
   try {
-    const rows = toMovieRows(tmdbResults(await deps.fetchTmdb(tmdbUrl(query))));
+    const results = tmdbResults(await deps.fetchTmdb(tmdbUrl(query)));
+    const rows = toMovieRows(results);
     if (rows.length === 0) {
       return { status: 200, body: { movies: [] } };
     }
+    const overviews = new Map(results.map((result) => [String(result.id), shortOverview(result.overview)]));
     const saved = new Map((await deps.saveRows(rows)).map(({ provider_movie_id, ...movie }) => [provider_movie_id, movie]));
-    const movies = rows.map((row) => saved.get(row.provider_movie_id)).filter((movie) => movie !== undefined);
+    const movies = rows
+      .map((row) => {
+        const movie = saved.get(row.provider_movie_id);
+        return movie && { ...movie, overview: overviews.get(row.provider_movie_id) ?? null };
+      })
+      .filter((movie) => movie !== undefined);
     return { status: 200, body: { movies } };
   } catch (error) {
     deps.logError('TMDB search failed; searching saved movies instead.', error);

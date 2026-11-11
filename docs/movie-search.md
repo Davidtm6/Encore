@@ -51,7 +51,7 @@ Search screen ──invoke('search-movies')──► Edge Function ──GET─�
 
 | Status | Body | When |
 | --- | --- | --- |
-| 200 | `{ "movies": [{ "id", "title", "release_year", "poster_url" }] }` | Normal results, in TMDB's order. `release_year` and `poster_url` can be `null`. |
+| 200 | `{ "movies": [{ "id", "title", "release_year", "poster_url", "overview" }] }` | Normal results, in TMDB's order. `release_year`, `poster_url`, and `overview` can be `null`. `overview` is the start of TMDB's plot summary (up to 200 characters, cut at a word), which the Search screen shows to tell same-titled films apart. It's passed through from TMDB and not stored, so fallback results don't have it. |
 | 200 | `{ "movies": [...] }` from saved movies | TMDB failed; see below |
 | 401 | An auth error | No valid signed-in token. The app shows "Your session expired." |
 | 502 | `{ "error": "Search isn’t available right now. Try again." }` | TMDB and the fallback both failed |

@@ -1,4 +1,4 @@
-import { escapeLike, POSTER_BASE_URL, toMovieRows } from './tmdb.ts';
+import { escapeLike, MAX_OVERVIEW_LENGTH, POSTER_BASE_URL, shortOverview, toMovieRows } from './tmdb.ts';
 
 describe('toMovieRows', () => {
   it('maps a TMDB result to a movies row', () => {
@@ -49,6 +49,27 @@ describe('toMovieRows', () => {
 
   it('returns nothing for no results', () => {
     expect(toMovieRows([])).toEqual([]);
+  });
+});
+
+describe('shortOverview', () => {
+  it('keeps a short overview as it is, with whitespace tidied', () => {
+    expect(shortOverview('  A family of con artists\n  moves in.  ')).toBe('A family of con artists moves in.');
+  });
+
+  it('is null when TMDB has no overview', () => {
+    for (const overview of [undefined, '', '   ']) {
+      expect(shortOverview(overview)).toBeNull();
+    }
+  });
+
+  it('cuts a long overview at a word and marks the cut', () => {
+    const long = 'word, '.repeat(100);
+    const short = shortOverview(long);
+
+    expect(short).not.toBeNull();
+    expect(short!.length).toBeLessThanOrEqual(MAX_OVERVIEW_LENGTH + 1);
+    expect(short).toMatch(/^word(, word)*…$/);
   });
 });
 

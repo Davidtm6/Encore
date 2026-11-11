@@ -13,8 +13,8 @@ The MVP is four features: accounts, finding and logging movies, ranking and re-r
 | Use case | Status | What works | Components it touches |
 | --- | --- | --- | --- |
 | **UC1:** Create an account | Operational | Sign up with email, username, and password; sign in; sign out. The session survives app restarts. | App → Supabase Auth → Postgres (a trigger creates the profile) |
-| **UC2:** Find and log a movie | Operational | Search TMDB by title (with posters) or browse popular films, then mark one watched. If TMDB is down, search falls back to films already saved. | App → Supabase Auth (login token) → `search-movies` Edge Function → TMDB → Postgres (saves the results); then App → Postgres (`watched_movies`, RLS) |
-| **UC3:** Rank a watched movie | Operational | Pick between two films until the new one has a place; the first film goes straight to #1. Cancel leaves the list unchanged. The whole order saves atomically. | App (ranking engine) → Postgres (`save_ranking` function, RLS) |
+| **UC2:** Find and log a movie | Operational | Search TMDB by title (with posters and a line of plot to tell similar films apart) or browse popular films, then mark one watched. Undo it right away, or remove a movie from My List later. If TMDB is down, search falls back to films already saved. | App → Supabase Auth (login token) → `search-movies` Edge Function → TMDB → Postgres (saves the results); then App → Postgres (`watched_movies`, RLS) |
+| **UC3:** Rank a watched movie | Operational | Pick between two films until the new one has a place; the first film goes straight to #1. The screen counts the questions, Back undoes the last answer, and the result shows the films above and below before you save. Cancel leaves the list unchanged. The whole order saves atomically. | App (ranking engine) → Postgres (`save_ranking` function, RLS) |
 | **UC4:** Re-rank a movie | Operational | Re-rank any ranked film through the same comparisons; other films keep their order. If the list changed elsewhere, the app starts over instead of saving a stale order. | App (ranking engine) → Postgres (`save_ranking` function, RLS) |
 | **UC5:** Write or edit a review | Operational | Write, then edit, one review per watched film, up to 10,000 characters. A failed save keeps the text for a retry. | App → Postgres (`reviews`, RLS: one per user and film, only the author can change it) |
 
@@ -147,6 +147,7 @@ supabase/
     20261028000000_mvp_ranking.sql  Profile on sign-up, default owners, atomic save_ranking function
     20261029000000_sample_films_to_tmdb.sql  Relabels the starter films with their TMDB IDs
     20261029010000_starter_film_posters.sql  Fills in posters for the starter films
+    20261111000000_close_rank_gaps.sql       Renumbers a ranking when a movie is removed from the watched list
   functions/search-movies/        Edge Function: TMDB search that saves results (logic in search.ts and tmdb.ts, Jest-tested)
   seed.sql                        50 starter films with TMDB IDs
   demo/demo-account.sql           Fills a demo account with a ranked list and a review

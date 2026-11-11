@@ -99,7 +99,13 @@ describe('searchMovies', () => {
   it('saves TMDB results and returns them with ids in TMDB order', async () => {
     const { deps, calls } = fakeDeps(
       tmdb(
-        { id: 496243, title: 'Parasite', release_date: '2019-05-30', poster_path: '/p.jpg' },
+        {
+          id: 496243,
+          title: 'Parasite',
+          release_date: '2019-05-30',
+          poster_path: '/p.jpg',
+          overview: 'All unemployed, the Kim family takes a peculiar interest in the wealthy Parks.',
+        },
         { id: 48311, title: 'Parasite', release_date: '1982-03-12', poster_path: null },
       ),
     );
@@ -108,12 +114,19 @@ describe('searchMovies', () => {
 
     expect(calls.urls).toEqual([tmdbUrl('parasite')]);
     expect(calls.saved).toEqual([['496243', '48311']]);
+    // The overview tells same-titled films apart (#47); it's passed through, not saved.
     expect(result).toEqual({
       status: 200,
       body: {
         movies: [
-          { id: 100, title: 'Parasite', release_year: 2019, poster_url: `${POSTER_BASE_URL}/p.jpg` },
-          { id: 101, title: 'Parasite', release_year: 1982, poster_url: null },
+          {
+            id: 100,
+            title: 'Parasite',
+            release_year: 2019,
+            poster_url: `${POSTER_BASE_URL}/p.jpg`,
+            overview: 'All unemployed, the Kim family takes a peculiar interest in the wealthy Parks.',
+          },
+          { id: 101, title: 'Parasite', release_year: 1982, poster_url: null, overview: null },
         ],
       },
     });
