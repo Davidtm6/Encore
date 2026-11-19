@@ -1,3 +1,4 @@
+import { creditsUrl, directorName } from './credits.ts';
 import { tmdbResults, tmdbUrl } from './search.ts';
 import { toMovieRows } from './tmdb.ts';
 const token = process.env.TMDB_READ_ACCESS_TOKEN;
@@ -24,5 +25,17 @@ describeWithToken('TMDB search response', () => {
     expect(rows.map((row)=> row.provider_movie_id)).toContain('496243');
   }, 15000);
 
+  it('still returns the credits fields the director lookup reads', async () => {
+    const response = await fetch(creditsUrl('496243'), {
+      headers: { Authorization: `Bearer ${token}`, accept: 'application/json' },
+      signal: AbortSignal.timeout(10000),
+    });
+    expect(response.status).toBe(200);
 
+    const credits = await response.json();
+    expect(credits.crew).toEqual(
+      expect.arrayContaining([expect.objectContaining({ job: 'Director', name: expect.any(String) })]),
+    );
+    expect(directorName(credits)).toBe('Bong Joon Ho');
+  }, 15000);
 });

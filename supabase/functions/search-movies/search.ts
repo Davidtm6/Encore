@@ -17,6 +17,12 @@ export interface Movie {
   release_year: number | null;
   poster_url: string | null;
   /**
+   * The saved director, or null when it hasn't been looked up or TMDB has
+   * none. Search doesn't look it up (that's one TMDB call per film); the app
+   * asks for it with `{ directorsFor }` once a film is on a list.
+   */
+  director?: string | null;
+  /**
    * The start of TMDB's plot summary, so similar titles can be told apart.
    * Passed through from TMDB, not stored, so fallback results have none.
    */
