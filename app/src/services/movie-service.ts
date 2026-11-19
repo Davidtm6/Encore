@@ -3,12 +3,13 @@ import { searchErrorMessage } from '@/services/search-error';
 import { supabase } from '@/services/supabase';
 import type { Tables } from '@/types/database';
 
-export type Movie = Pick<Tables<'movies'>, 'id' | 'title' | 'release_year' | 'poster_url'>;
+/** `director` is null until it's looked up (see lookUpDirectors), or when TMDB has none. */
+export type Movie = Pick<Tables<'movies'>, 'id' | 'title' | 'release_year' | 'poster_url' | 'director'>;
 
 /** A search result: a movie plus the start of TMDB's plot summary, when TMDB answered. */
 export type SearchResult = Movie & { overview?: string | null };
 
-export const MOVIE_FIELDS = 'id, title, release_year, poster_url';
+export const MOVIE_FIELDS = 'id, title, release_year, poster_url, director';
 
 /** What a search found. */
 export interface SearchOutcome {
@@ -35,6 +36,23 @@ export async function searchMovies(query: string): Promise<SearchOutcome> {
     throw new Error(await searchErrorMessage(error));
   }
   return { movies: data?.movies ?? [], suggestions: data?.suggestions ?? [], fromSaved: data?.fromSaved === true };
+}
+
+/**
+ * Asks the search-movies function to look up and save the directors of these
+ * films (at most 20 per call) from TMDB, and returns each one's director, or
+ * null when TMDB has none. Each lookup is a TMDB call, so this is for films on
+ * the user's list, not every search result.
+ */
+export async function lookUpDirectors(movieIds: number[]): Promise<Map<number, string | null>> {
+  const { data, error } = await supabase.functions.invoke<{ directors: { id: number; director: string | null }[] }>(
+    'search-movies',
+    { body: { directorsFor: movieIds } },
+  );
+  if (error) {
+    throw new Error(await searchErrorMessage(error));
+  }
+  return new Map((data?.directors ?? []).map(({ id, director }) => [id, director]));
 }
 
 export async function getMovie(movieId: number): Promise<Movie> {

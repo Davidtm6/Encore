@@ -262,13 +262,14 @@ All data is stored in Supabase.
 | Table | Stores |
 | --- | --- |
 | `profiles` | Username, display name, and other profile details |
-| `movies` | Title, year, genre, provider link, and poster |
+| `movies` | Title, year, director, genre, provider link, and poster |
 | `watched_movies` | Which movies each user has watched |
 | `reviews` | Review text and timestamps; one per user/movie pair |
 | `rankings` | A record of each saved ranking |
 
 The migrations in `supabase/migrations/` implement:
 - the tables `profiles`, `movies`, `watched_movies` (which also holds each movie's rank position), and `reviews`;
+- `movies.director`, filled in from TMDB's credits by the `search-movies` function for films on someone's list, and `null` until then or when TMDB has none (see [movie search](movie-search.md#directors));
 - a trigger that creates a profile at sign-up;
 - `save_ranking`, the atomic save, which rewrites a user's whole order in one statement after checking it against the saved list.
 

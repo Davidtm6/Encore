@@ -23,6 +23,8 @@ Search screen ──invoke('search-movies')──► Edge Function ──GET─�
 3. It turns TMDB's results into `movies` rows and upserts them. The rows are keyed by `(provider, provider_movie_id)` = `('tmdb', <TMDB id>)`, so each film is stored once, and a repeat search refreshes its title, year, and poster.
 4. It returns the saved rows, with Encore's own `id`, in TMDB's order. The app needs that `id` to mark a movie watched, rank it, or review it.
 
+The same function also fills in each film's director; see [Directors](#directors).
+
 **Why go through a function?** There are three reasons:
 - **The token stays secret.** The TMDB token lives in Supabase's secrets. Anything in the app, including `app/.env`, can be pulled out of the app bundle.
 - **Results can be saved.** The app has no write access to `movies` (row-level security), so only the function, with the admin client, can save TMDB's results.
@@ -32,7 +34,9 @@ Search screen ──invoke('search-movies')──► Edge Function ──GET─�
 
 | File | Role |
 | --- | --- |
-| `app/src/services/movie-service.ts` | `searchMovies(query)` calls the function; `getMovie(id)` reads one saved movie |
+| `app/src/services/movie-service.ts` | `searchMovies(query)` calls the function; `lookUpDirectors(ids)` asks it for directors; `getMovie(id)` reads one saved movie |
+| `app/src/hooks/use-my-movies.ts` | My List, which asks for any missing directors after it loads |
+| `app/src/components/movie-card.tsx` | A movie row: title, then year and director when known |
 | `app/src/services/search-error.ts` | The message Search shows when the call fails |
 | `app/src/hooks/use-movie-search.ts` | Debounce, loading, error, and retry state for the Search screen |
 | `app/src/app/(tabs)/search.tsx` | The Search screen, including the "Popular right now" list |
@@ -40,8 +44,10 @@ Search screen ──invoke('search-movies')──► Edge Function ──GET─�
 | `supabase/functions/search-movies/index.ts` | The Edge Function: sign-in check, the TMDB request (5-second timeout), and the database calls |
 | `supabase/functions/search-movies/search.ts` | The search logic: reading the query, building the TMDB URL, saving, ordering, and the fallback. It has no Deno or Supabase code, so Jest tests it. |
 | `supabase/functions/search-movies/tmdb.ts` | Turning TMDB results into `movies` rows |
+| `supabase/functions/search-movies/credits.ts` | Directors: the credits URL, picking the director out of TMDB's credits, and filling in missing ones |
 | `supabase/functions/search-movies/typo.ts` | Near matches for a misspelled query: the looser queries to try, and which titles are close enough to suggest |
 | `supabase/config.toml` (`[functions.search-movies]`) | The function's settings, including `verify_jwt` |
+| `supabase/migrations/20261119000000_movie_director.sql` | Added the `director` column |
 | `supabase/migrations/20261029000000_sample_films_to_tmdb.sql` | Gave the 50 starter films their TMDB IDs |
 | `supabase/migrations/20261029010000_starter_film_posters.sql` | Gave the 50 starter films their posters |
 | `supabase/seed.sql` | The 50 starter films for fresh databases, with TMDB IDs and posters |
@@ -54,11 +60,25 @@ Search screen ──invoke('search-movies')──► Edge Function ──GET─�
 
 | Status | Body | When |
 | --- | --- | --- |
-| 200 | `{ "movies": [{ "id", "title", "release_year", "poster_url", "overview" }] }` | Normal results, in TMDB's order. `release_year`, `poster_url`, and `overview` can be `null`. `overview` is the start of TMDB's plot summary (up to 200 characters, cut at a word), which the Search screen shows to tell same-titled films apart. It's passed through from TMDB and not stored, so fallback results don't have it. |
+| 200 | `{ "movies": [{ "id", "title", "release_year", "poster_url", "director", "overview" }] }` | Normal results, in TMDB's order. `release_year`, `poster_url`, `director`, and `overview` can be `null`. `director` is whatever is already saved; search never looks it up (see [Directors](#directors)). `overview` is the start of TMDB's plot summary (up to 200 characters, cut at a word), which the Search screen shows to tell same-titled films apart. It's passed through from TMDB and not stored, so fallback results don't have it. |
 | 200 | `{ "movies": [], "suggestions": [...] }` | The query found nothing, but some titles are close to it. `suggestions` has the same shape as `movies`, nearest first, at most 5. The Search screen lists them under "Did you mean". The key is left out when there are none. |
 | 200 | `{ "movies": [...], "fromSaved": true }` from saved movies | TMDB failed; see below. The Search screen says that live search isn't available and that these results have no plot summaries. |
 | 401 | An auth error | No valid signed-in token. The app shows "Your session expired." |
 | 502 | `{ "error": "Search isn’t available right now. Try again." }` | TMDB and the fallback both failed |
+
+**Director requests:** the same endpoint with the body `{ "directorsFor": [12, 34] }` looks up directors instead of searching; see [Directors](#directors). It answers `200` with `{ "directors": [{ "id", "director" }] }`, one entry per id that is a saved film, with `director` `null` when TMDB has none or the lookup failed. Ids that aren't whole positive numbers are ignored, and only the first 20 are used. If the database can't be read, it answers `502` with `{ "error": "Directors couldn’t be loaded right now." }`.
+
+## Directors
+
+My List and Search show each film's director after its year, for example "2019 · Bong Joon Ho", so similar films can be told apart (#61). Nothing is shown when the director isn't known.
+
+TMDB's search results have no director. It comes from a film's credits (`/movie/{id}/credits`): the crew members whose `job` is `"Director"`. Several directors are saved joined, in TMDB's order, for example "Lana Wachowski, Lilly Wachowski". Asking for credits is one TMDB call per film, so:
+- **Search never asks.** A search result shows a director only if the film's director is already saved.
+- **My List asks.** After the list loads, `use-my-movies.ts` sends the ids of films with no director (at most 20) as `{ "directorsFor": [...] }`. The function asks TMDB only about the ones still missing a director, saves what it finds with the admin client, and returns them; the list updates in place. So a film marked watched gets its director the next time My List opens.
+- **Each film is looked up once.** Once saved, the director is reused for every user. A film TMDB has no director for stays `null`, and My List asks about it again at most once each time the screen is opened.
+- **A failed lookup is quiet.** The list shows without the director, and it's tried again next time.
+
+The 50 starter films have no director in `seed.sql` or the migrations; they get one the same way, once they're on someone's list. That keeps `starter-catalog.test.ts` and the demo script unchanged.
 
 ## Misspelled searches
 
@@ -145,8 +165,10 @@ The About screen (`app/src/app/about.tsx`, opened from My List) covers all three
 | --- | --- |
 | `supabase/functions/search-movies/search.test.ts` | The function's logic with fake TMDB and database calls: the query, the URL, saving and ordering, and every fallback |
 | `supabase/functions/search-movies/tmdb.test.ts` | How TMDB results become rows |
+| `supabase/functions/search-movies/credits.test.ts` | Picking the director out of a credits response (none, one, several), reading a director request, and filling in only the missing directors |
 | `supabase/functions/search-movies/typo.test.ts` | The looser queries for a misspelled search, and which titles are close enough to suggest |
-| `supabase/functions/search-movies/tmdb-contract.test.ts` | That TMDB's live search response still has the fields we read. It skips without `TMDB_READ_ACCESS_TOKEN` |
+| `supabase/functions/search-movies/tmdb-contract.test.ts` | That TMDB's live search and credits responses still have the fields we read. It skips without `TMDB_READ_ACCESS_TOKEN` |
+| `supabase/tests/database/movie-director.test.sql` | That signed-in users can read the director but not change it |
 | `app/src/services/search-error.test.ts` | The error messages Search shows |
 | `supabase/tests/starter-catalog.test.ts` | That the seed, both TMDB migrations, and the demo script agree on the same 50 films and posters |
 | `supabase/tests/database/tmdb-migrations.test.sql` | Both migrations on the shared database's old state |
@@ -159,8 +181,9 @@ What the tests can't check is the deployed function talking to the real TMDB and
 1. Search for "parasite": the results show posters and a plot line under each title.
 2. Search for "intersteller": Interstellar appears under "Did you mean".
 3. Clear the search box: "Popular right now" appears.
-4. Mark a new result watched, then rank and review it.
-5. Open My List → **About**: the logo and notice show.
+4. Mark a new result watched, then open My List: its director appears after the year (for "parasite", "2019 · Bong Joon Ho").
+5. Mark a new result watched, then rank and review it.
+6. Open My List → **About**: the logo and notice show.
 
 ## Changing it
 
@@ -178,6 +201,7 @@ What the tests can't check is the deployed function talking to the real TMDB and
 
 | Symptom | Likely cause | Fix |
 | --- | --- | --- |
+| My List never shows directors | The `director` migration or the function hasn't been deployed | Run `npx supabase db push`, then redeploy the function |
 | Results have no plot line under the title, and no "saved movies" notice shows | The deployed function is older than the code on `main` | Check `npx supabase functions list`, then redeploy |
 | A misspelled search never shows "Did you mean" | The same, or the typo is one this can't catch (see [Misspelled searches](#misspelled-searches)) | Redeploy, then try "intersteller" |
 | Every search says "Search isn’t available" | The function isn't deployed, or both TMDB and the database fail | Deploy it, then check the logs |
@@ -186,4 +210,4 @@ What the tests can't check is the deployed function talking to the real TMDB and
 | One user gets "Your session expired" | Their session ended | Sign out and back in |
 | A starter film shows up twice | It was searched before its TMDB ID migration ran, so one copy is still labeled `'sample'` | Run `select * from public.movies where provider = 'sample';` in the SQL Editor and ask the backend owner to merge the two rows |
 | Starter films show colored tiles instead of posters | The poster migration hasn't been pushed | Run `npx supabase db push` |
-| The `TMDB format` CI job fails | The token was rejected (401), TMDB is down, or TMDB changed its response | Read the job's log. A 401 means replacing the `TMDB_READ_ACCESS_TOKEN` GitHub secret. A changed field means updating `tmdb.ts` and the test. |
+| The `TMDB format` CI job fails | The token was rejected (401), TMDB is down, or TMDB changed its response | Read the job's log. A 401 means replacing the `TMDB_READ_ACCESS_TOKEN` GitHub secret. A changed field means updating `tmdb.ts` or `credits.ts` and the test. |
