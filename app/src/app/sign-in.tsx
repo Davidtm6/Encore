@@ -1,21 +1,14 @@
-import { type ReactNode, useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  type TextInputProps,
-  View,
-} from 'react-native';
+import { useRouter } from 'expo-router';
+import { useState } from 'react';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/button';
 import { ErrorBanner } from '@/components/error-banner';
+import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
 import { signIn, signUp } from '@/services/auth-service';
 import {
   type CredentialErrors,
@@ -28,6 +21,7 @@ import {
 import { messageOf } from '@/services/errors';
 
 export default function SignInScreen() {
+  const router = useRouter();
   const [mode, setMode] = useState<'sign-in' | 'sign-up'>('sign-in');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -99,7 +93,7 @@ export default function SignInScreen() {
             </ThemedText>
 
             {signingUp && (
-              <Field
+              <TextField
                 label="Username"
                 hint={USERNAME_HINT}
                 error={fieldErrors.username}
@@ -110,7 +104,7 @@ export default function SignInScreen() {
                 onChangeText={edit('username', setUsername)}
               />
             )}
-            <Field
+            <TextField
               label="Email"
               error={fieldErrors.email}
               autoCapitalize="none"
@@ -120,7 +114,7 @@ export default function SignInScreen() {
               value={email}
               onChangeText={edit('email', setEmail)}
             />
-            <Field
+            <TextField
               label="Password"
               hint={signingUp ? PASSWORD_HINT : undefined}
               error={fieldErrors.password}
@@ -142,6 +136,17 @@ export default function SignInScreen() {
               }
             />
 
+            {!signingUp && (
+              <View style={styles.forgot}>
+                <Button
+                  variant="plain"
+                  size="small"
+                  label="Forgot password?"
+                  onPress={() => router.push('/forgot-password')}
+                />
+              </View>
+            )}
+
             {notice && (
               <ThemedText type="small" accessibilityRole="alert">
                 {notice}
@@ -162,44 +167,6 @@ export default function SignInScreen() {
   );
 }
 
-type FieldProps = TextInputProps & {
-  label: string;
-  /** The field's rule, shown until there is an error to show instead. */
-  hint?: string;
-  error?: string;
-  /** A control inside the field on the right, such as Show password. */
-  accessory?: ReactNode;
-};
-
-/** A labeled text input with its rule or error underneath. */
-function Field({ label, hint, error, accessory, ...input }: FieldProps) {
-  const theme = useTheme();
-  const helper = error ?? hint;
-  return (
-    <View style={styles.field}>
-      <View style={[styles.inputRow, { backgroundColor: theme.backgroundElement }, error && { borderColor: theme.danger }]}>
-        <TextInput
-          style={[styles.input, { color: theme.text }]}
-          placeholder={label}
-          placeholderTextColor={theme.textSecondary}
-          accessibilityLabel={label}
-          accessibilityHint={helper}
-          {...input}
-        />
-        {accessory}
-      </View>
-      {helper ? (
-        <ThemedText
-          type="small"
-          themeColor={error ? 'danger' : 'textSecondary'}
-          accessibilityLiveRegion={error ? 'polite' : 'none'}>
-          {helper}
-        </ThemedText>
-      ) : null}
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   fill: {
     flex: 1,
@@ -213,21 +180,7 @@ const styles = StyleSheet.create({
     maxWidth: MaxContentWidth,
     alignSelf: 'center',
   },
-  field: {
-    gap: Spacing.one,
-  },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'transparent',
-    paddingRight: Spacing.one,
-  },
-  input: {
-    flex: 1,
-    minHeight: 48,
-    paddingHorizontal: Spacing.three,
-    fontSize: 16,
+  forgot: {
+    alignSelf: 'flex-end',
   },
 });

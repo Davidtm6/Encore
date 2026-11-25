@@ -228,7 +228,7 @@ Any PR that changes setup or behavior also updates the relevant doc.
 
 - **Mobile app (React Native + Expo, iOS and Android):** sign up and sign in, movie search, the watched list, ranking by picking between two movies, and reviews.
 - **Ranking engine (TypeScript, runs inside the app):** chooses the next pair to show, records each pick, and works out the movie's final position. Running on the phone keeps every tap instant. The database checks the final order before saving it (see 7.5).
-- **Authentication (Supabase Auth):** sign up, sign in, and login tokens. Encore never stores or sees passwords. Email verification and password reset come before the tester release.
+- **Authentication (Supabase Auth):** sign up, sign in, and login tokens. Encore never stores or sees passwords. Password reset works with a code sent by email; email verification comes before the tester release.
 - **Movie search (Supabase Edge Function `search-movies`, Deno + TypeScript):** checks the caller's login token, searches TMDB, saves the results to `movies`, and returns them. If TMDB fails, it searches the movies already saved.
 - **Database (Supabase Postgres):** profiles, movies, watched lists with each movie's rank position, and reviews. The app reads and writes it with the user's login token, so RLS on every table and the `save_ranking` function are the security boundary. Only the Edge Function can write `movies`.
 - **Movie data (TMDB):** titles, years, and posters.

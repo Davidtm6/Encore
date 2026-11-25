@@ -24,13 +24,27 @@ export function validateCredentials(email: string, password: string, username?: 
   if (username !== undefined && !USERNAME.test(username)) {
     errors.username = 'Usernames are 3–30 letters, numbers, or underscores.';
   }
-  if (!EMAIL.test(email)) {
-    errors.email = 'Enter a valid email address.';
+  const emailError = validateEmail(email);
+  if (emailError) {
+    errors.email = emailError;
   }
-  if (password.length < MIN_PASSWORD_LENGTH) {
-    errors.password = `Passwords need at least ${MIN_PASSWORD_LENGTH} characters.`;
+  const passwordError = validatePassword(password);
+  if (passwordError) {
+    errors.password = passwordError;
   }
   return errors;
+}
+
+/** Returns a message when `email` doesn't look like an email address. */
+export function validateEmail(email: string): string | undefined {
+  return EMAIL.test(email) ? undefined : 'Enter a valid email address.';
+}
+
+/** Returns a message when `password` is too short, for sign-up and for choosing a new password. */
+export function validatePassword(password: string): string | undefined {
+  return password.length < MIN_PASSWORD_LENGTH
+    ? `Passwords need at least ${MIN_PASSWORD_LENGTH} characters.`
+    : undefined;
 }
 
 export function hasErrors(errors: CredentialErrors): boolean {

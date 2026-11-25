@@ -244,6 +244,12 @@ otp_expiry = 3600
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
 
+# The app resets passwords with the code ({{ .Token }}), not a link, because Expo Go can't open
+# encore:// links. The hosted project needs the same template; see docs/setup.md.
+[auth.email.template.recovery]
+subject = "Your Encore password reset code"
+content_path = "./supabase/templates/recovery.html"
+
 # Uncomment to customize email template
 # [auth.email.template.invite]
 # subject = "You have been invited"

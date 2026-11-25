@@ -54,7 +54,8 @@ The team's dev project exists, so skip this unless you need a new one.
 
 1. Create a free project at <https://supabase.com/dashboard>, with **Enable Data API** on, the `public` schema, and automatic RLS on. Save the database password.
 2. In **Authentication → Sign In / Providers → Email**, turn off **Confirm email**. The first demo signs users in right after sign-up; email verification comes back before tester releases.
-3. Link the repository and apply the schema and starter films, from the repository root:
+3. Set up the password reset email as described in [Password reset emails](#password-reset-emails).
+4. Link the repository and apply the schema and starter films, from the repository root:
 
    ```sh
    npx supabase login
@@ -93,12 +94,26 @@ In the app, sign up with the username `demo`. Then open `supabase/demo/demo-acco
 2. Sign in as `demo`. Rank an unranked film; it takes about 4 comparisons. Cancel one ranking partway and check that the list didn't change.
 3. Re-rank a film. Write a review, then edit it.
 4. Close and reopen the app; you're still signed in. Sign out and back in; everything is still there.
+5. Sign out, tap **Forgot password?**, and reset the password with the emailed code. You land on My List, and the new password works the next time you sign in. This needs an address that can get the email; see [Password reset emails](#password-reset-emails).
 
 ## The shared development database
 
 Everyone's app talks to the same Supabase project:
 - **Accounts:** usernames are unique across the team, so each person signs up with their own.
 - **Pausing:** free projects pause after about a week without activity. Anyone in the organization can restore one from the dashboard; it takes a few minutes. Check the day before a demo.
+
+### Password reset emails
+
+**Forgot password?** on the sign-in screen emails a code, and the person types it into the app with a new password. Encore uses a code, not a reset link, because Expo Go can't open `encore://` links. A code works the same in Expo Go, the web build, and store builds.
+
+Supabase's default reset email contains only a link, so the project needs a template that includes the code. Someone with dashboard access sets it up once per project:
+1. Open **Authentication → Emails → Templates → Reset Password**.
+2. Set the subject to `Your Encore password reset code`.
+3. Replace the body with the contents of `supabase/templates/recovery.html`. The `{{ .Token }}` in it is the code.
+
+A local stack (`npx supabase start`) already uses this template through `supabase/config.toml`. Its emails go to Mailpit, at the address that `start` prints, instead of a real inbox.
+
+Supabase's built-in email sender only delivers to members of the project's Supabase organization, and only a few emails an hour. Until the project has its own SMTP server (#12), anyone else who asks for a code sees "Encore can't send email to that address yet."
 
 ## Movie search (TMDB)
 
@@ -148,7 +163,6 @@ The first demo leaves these for later increments:
 - Required email verification.
 - The 100-matchups-per-hour limit.
 - The review content filter.
-- Password reset.
 - Maestro system tests.
 - EAS builds with TestFlight and Google Play internal testing.
 
