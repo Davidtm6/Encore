@@ -47,3 +47,17 @@ function authError(error: AuthError): Error {
   }
   return userError(error, error.message || 'Something went wrong. Try again.');
 }
+
+/**
+ * The signed-in user's id, read from the stored session without a network call.
+ * Queries that RLS lets see more than the user's own rows (a friend's watched
+ * list, for example) filter by it.
+ */
+export async function currentUserId(): Promise<string> {
+  const { data } = await supabase.auth.getSession();
+  const id = data.session?.user.id;
+  if (!id) {
+    throw new Error('You’ve been signed out. Sign in again to continue.');
+  }
+  return id;
+}

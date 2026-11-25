@@ -1,3 +1,4 @@
+import { currentUserId } from '@/services/auth-service';
 import { userError } from '@/services/errors';
 import { MOVIE_FIELDS, type Movie } from '@/services/movie-service';
 import { supabase } from '@/services/supabase';
@@ -11,13 +12,23 @@ export interface WatchedMovie {
 
 /** The signed-in user's watched list: ranked films best first, then unranked, newest first. */
 export async function listMyMovies(): Promise<WatchedMovie[]> {
+  return listWatched(await currentUserId(), 'Your list couldn’t be loaded. Try again.');
+}
+
+/**
+ * One person's watched list, ordered as on My List. Friends can read each
+ * other's lists, so this always filters by user: RLS alone would also return
+ * every friend's rows.
+ */
+export async function listWatched(userId: string, failure: string): Promise<WatchedMovie[]> {
   const { data, error } = await supabase
     .from('watched_movies')
     .select(`rank_position, movies(${MOVIE_FIELDS}), reviews(body)` as const)
+    .eq('user_id', userId)
     .order('rank_position', { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: false });
   if (error) {
-    throw userError(error, 'Your list couldn’t be loaded. Try again.');
+    throw userError(error, failure);
   }
   return data.map((row) => ({
     movie: row.movies,
@@ -45,7 +56,11 @@ export async function markWatched(movieId: number): Promise<boolean> {
  * signed-in user's own rows.
  */
 export async function removeWatched(movieId: number): Promise<void> {
-  const { error } = await supabase.from('watched_movies').delete().eq('movie_id', movieId);
+  const { error } = await supabase
+    .from('watched_movies')
+    .delete()
+    .eq('user_id', await currentUserId())
+    .eq('movie_id', movieId);
   if (error) {
     throw userError(error, 'That movie couldn’t be removed. Try again.');
   }
