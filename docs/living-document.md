@@ -93,8 +93,8 @@ Users can view their saved watched list, ranking, and reviews after signing back
 - **Trigger:** user selects Write review or Edit review.
 - **Preconditions:** the movie is in the user's watched list.
 - **Postconditions:** one review is saved for that user/movie pair.
-- **Steps:** open the review form; enter or change text; submit; view the saved review.
-- **Extensions:** cancel preserves the existing review; an unranked watched movie can be reviewed.
+- **Steps:** open the review form; enter or change text; choose who can read it (Friends, the default, or Everyone); submit; view the saved review.
+- **Extensions:** cancel preserves the existing review; an unranked watched movie can be reviewed; the author can change who can read a review at any time.
 - **Exceptions:** empty or over-limit text shows validation; failed saves keep the text for retry; editing another user's review is rejected; text that fails the content filter is rejected.
 
 ## 4. Non-functional requirements
@@ -273,6 +273,7 @@ The migrations in `supabase/migrations/` implement:
 - `movies.director`, filled in from TMDB's credits by the `search-movies` function for films on someone's list, and `null` until then or when TMDB has none (see [movie search](movie-search.md#directors));
 - a trigger that creates a profile at sign-up;
 - `save_ranking`, the atomic save, which rewrites a user's whole order in one statement after checking it against the saved list;
+- `reviews.visibility` (#15): `'friends'` (the default) lets the author and their friends read a review, and `'public'` lets every signed-in user read it. The author chooses per review. Reviews written before this existed became `'friends'`. `is_friend(other)` is the shared check for "the caller and `other` have each added the other";
 - `follows` (stretch goal, #39 and #40), with row-level security so people see only the adds they made or received, and a read-only policy on `watched_movies` that shows a user's list and ranking to people they're friends with. Writes to `watched_movies` stay owner-only, and the app filters its own list by user ID because RLS alone would now also return friends' rows.
 
 Genre, display name, a separate rankings table, and matchup rate limits are not in them yet.
@@ -289,6 +290,7 @@ Genre, display name, a separate rankings table, and matchup rate limits are not 
 - **The app calls Supabase directly; the Encore API is deferred (decided for the beta, #16).** The original plan sent every request through our own API. Instead, the server side is the `search-movies` Edge Function plus RLS and database functions in Postgres. This covers every MVP use case with less to host and keep running. The API comes back when the server-side ranking re-check or rate limits need it; then only `app/src/services` changes.
 - Run the ranking engine in the app for instant feedback. `save_ranking` checks that an order is complete and contains only the caller's watched movies, but doesn't replay comparisons yet; that re-check is the main reason to build the API.
 - Keep TMDB behind the Edge Function, so the TMDB key never ships in the app and search results are saved for when TMDB is unavailable.
+- **Who can read a review (#15):** each review's author chooses Friends (the default) or Everyone. Friends-only by default means nothing is shown to strangers unless its author opts in, and existing reviews were made friends-only for the same reason. Rankings stay friends-only with no public option. Anyone who can read a review will be able to comment on it (#41).
 
 ## 8. Software design
 
@@ -323,7 +325,6 @@ These are places where the team document disagrees with itself or leaves a choic
 - **Web leftovers.** The team document's accessibility requirement (section 4) still asks for keyboard use with visible focus. This file rewrites it for mobile (VoiceOver and TalkBack). The revised pitch's technical approach (section 2) also still says a React frontend deployed on Vercel with the IMDb API, which contradicts the Expo app and TMDB in the same section. This file keeps Expo and TMDB.
 - **Where decisions live.** Section 1 says decisions go in a shared Word doc; section 6 says Google Docs.
 - **iOS-only wording.** The team document says iOS throughout (TestFlight, VoiceOver, iOS Simulator). This file says iOS and Android, since Expo builds both; the team document should be updated to match, and the team needs a Google Play developer account and an Android test device.
-- **Public versus friends-only reviews.** The draft migration lets any signed-in user read reviews. The friends feature leaves that as is and only limits watched lists and rankings to friends; decide whether reviews should become friends-only too (#15).
 - **Use-case owners.** Section 3's owners don't match the schedule or the roles:
   - UC2 (find a movie) lists Pavan, but Lucas owns search and builds UC2 in week 2.
   - UC3 (rank) lists Lucas, but Pavan owns ranking and builds UC3 in week 3.
