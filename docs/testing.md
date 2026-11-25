@@ -72,7 +72,7 @@ read -s TMDB_READ_ACCESS_TOKEN && export TMDB_READ_ACCESS_TOKEN && npm test -- t
 
 | Suite | Covers |
 | --- | --- |
-| `app/src/ranking/ranking-session.test.ts` | The ranking engine used by the Rank screen: first movie, every insertion position for lists of 0–128 films within `ceil(log2(n + 1))` comparisons, cancel leaving the list unchanged, re-rank keeping other movies in order, the "Question 2 of up to 4" count never promising too few, undoing an answer, and the films above and below the new place |
+| `app/src/ranking/ranking-session.test.ts` | The ranking engine used by the Rank screen: first movie, every insertion position for lists of 0–128 films within `ceil(log2(n + 1))` comparisons, and for 200, 500, and 1,000 films within `floor` to `ceil` of `log2(n + 1)`; the recorded counts in [Ranking large lists](#ranking-large-lists); cancel leaving the list unchanged, re-rank keeping other movies in order, the "Question 2 of up to 4" count never promising too few, undoing an answer, and the films above and below the new place |
 | `app/src/services/auth-validation.test.ts` | The sign-in and sign-up form rules, and that every invalid field is reported at once |
 | `app/src/services/friends.test.ts` | Sorting your adds into friends, "Added you", and "Waiting for them to add you back"; naming a relation; and building a safe username search pattern |
 | `app/src/services/comments.test.ts` | Comments: the length limit, who can edit or delete, spotting an edited comment, counting comments per review, and the comments button's label |
@@ -90,12 +90,42 @@ read -s TMDB_READ_ACCESS_TOKEN && export TMDB_READ_ACCESS_TOKEN && npm test -- t
 | `supabase/tests/database/review-visibility.test.sql` | Who can read a review: friends-only by default, readable by the author and mutual friends; public reviews by everyone signed in; a one-way add or a removed friend sees only public reviews; only the author can change visibility; `is_friend` |
 | `supabase/tests/database/friends.test.sql` | Friends: a one-way add shows nothing, mutual adds show each other's list, ranking, and reviews, friends can't change each other's lists, `save_ranking` ignores a friend's visible films, strangers and signed-out users see nothing, and removing a friend hides the list again |
 | `supabase/tests/database/remove-watched.test.sql` | Removing a movie from the watched list: the ranking closes up (including several removals at once), the review goes too, and nobody can remove another user's movies |
+| `supabase/tests/database/large-ranking.test.sql` | `save_ranking` with 1,000 films: the first save, adding a film at #1 (every other film moves down), and reversing the whole list, each correct and under 5 seconds; the times show in the output |
 | `supabase/tests/database/movie-director.test.sql` | The `director` column: empty names are rejected, and signed-in users can read it but not change it |
 | `supabase/tests/database/starter-catalog.test.sql` | The seed and demo script on a fresh database, both safe to rerun, and the TMDB migrations being no-ops there |
 | `supabase/tests/database/tmdb-migrations.test.sql` | Both TMDB migrations on the shared database's old state: films relabeled with row ids kept, lists, rankings, and reviews untouched, a film search already saved left alone, and posters filled only where missing |
 | `prototype/ranking.test.ts` and `prototype/test_ranking.py` | The reference binary-insertion prototypes |
 
 Each suite was checked by breaking the code on purpose and confirming a test fails.
+
+## Ranking large lists
+
+How many comparisons ranking takes as a list grows (#64). The numbers come from the engine itself and are checked by the "large lists" tests in `ranking-session.test.ts`, so they stay true if the engine changes.
+
+**Placing one more film** in a list of n films:
+
+| Films ranked | At #1 | At the bottom | In the middle | Average over every place | Range |
+| --- | --- | --- | --- | --- | --- |
+| 100 | 7 | 6 | 6 | 6.73 | 6–7 |
+| 200 | 8 | 7 | 7 | 7.73 | 7–8 |
+| 500 | 9 | 8 | 8 | 8.98 | 8–9 |
+| 1,000 | 10 | 9 | 9 | 9.98 | 9–10 |
+
+**Building a list from nothing**, one film at a time:
+
+| Films | Fewest comparisons in all (every film at the bottom) | Most (every film at #1) |
+| --- | --- | --- |
+| 100 | 480 | 573 |
+| 200 | 1,153 | 1,345 |
+| 500 | 3,498 | 3,989 |
+| 1,000 | 7,987 | 8,977 |
+
+**Saving:** `save_ranking` rewrites every position on each save. `large-ranking.test.sql` saves 1,000 films, adds one at #1, and reverses all 1,001; each save must finish in under 5 seconds, and CI's output lists the actual times.
+
+**What this means for Risk 2 (comparison fatigue):**
+- Adding a film stays cheap however long the list gets: at most 10 questions at 1,000 films, against 7 at 100. Long lists alone don't call for "skip" / "too close to call" (#43) or for asking "Loved it / Okay / Didn't like it" first (#60).
+- The cost is building a big list in the first place: someone importing 100 films faces 480–573 questions. That's where #60 would help most, since a first answer of "Didn't like it" removes the top of the list from the search. The planned matchup rate limit (#14, 100 per hour) would also stop that person partway through their 27th to 32nd film, so its number should be revisited before it's built.
+- Not yet checked by hand: scrolling and ranking in the app with a list of 200 or more. `supabase/demo/large-ranking.sql` sets that up; see [Prepare a demo account](setup.md#4-prepare-a-demo-account).
 
 ## Add a test
 

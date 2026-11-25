@@ -220,3 +220,78 @@ describe('re-ranking', () => {
     expect(finalOrder(session)).toEqual([10]);
   });
 });
+
+/**
+ * Large lists (#64). The lists above go up to 128 films; testers may get to
+ * hundreds. Films are the numbers 0..n-1 in best-first order, so a film's
+ * value is its index and answers need no lookup.
+ */
+describe('large lists (#64)', () => {
+  /** Comparisons to place a new film at `desired` in a list of `size`, checking where it lands. */
+  function comparisonsToPlace(size: number, desired: number): number {
+    const ranked = Array.from({ length: size }, (_, i) => i);
+    let session: RankingSession<number> = startRanking(ranked, -1);
+    let comparisons = 0;
+    for (let opponent = nextOpponent(session); opponent !== undefined; opponent = nextOpponent(session)) {
+      comparisons++;
+      session = choose(session, desired <= opponent);
+    }
+    expect(finalOrder(session).indexOf(-1)).toBe(desired);
+    return comparisons;
+  }
+
+  it.each([200, 500, 1000])(
+    'places a film anywhere in a list of %i in floor(log2(n + 1)) to ceil(log2(n + 1)) comparisons',
+    (size) => {
+      const fewest = Math.floor(Math.log2(size + 1));
+      const most = Math.ceil(Math.log2(size + 1));
+      for (let desired = 0; desired <= size; desired++) {
+        const comparisons = comparisonsToPlace(size, desired);
+        if (comparisons < fewest || comparisons > most) {
+          throw new Error(`size ${size}, place ${desired}: ${comparisons} comparisons, expected ${fewest}–${most}`);
+        }
+      }
+    },
+  );
+
+  // The numbers recorded in docs/testing.md ("Ranking large lists"). If the
+  // engine changes, update the table there too.
+  it.each([
+    { size: 100, top: 7, bottom: 6, middle: 6, average: 6.73 },
+    { size: 200, top: 8, bottom: 7, middle: 7, average: 7.73 },
+    { size: 500, top: 9, bottom: 8, middle: 8, average: 8.98 },
+    { size: 1000, top: 10, bottom: 9, middle: 9, average: 9.98 },
+  ])('a list of $size takes $top at #1, $bottom at the bottom, $middle in the middle', (row) => {
+    const counts = Array.from({ length: row.size + 1 }, (_, desired) => comparisonsToPlace(row.size, desired));
+    const average = counts.reduce((sum, n) => sum + n, 0) / counts.length;
+
+    expect(counts[0]).toBe(row.top);
+    expect(counts[row.size]).toBe(row.bottom);
+    expect(counts[Math.floor(row.size / 2)]).toBe(row.middle);
+    expect(average).toBeCloseTo(row.average, 2);
+  });
+
+  it.each([
+    { films: 100, worst: 573, best: 480 },
+    { films: 200, worst: 1345, best: 1153 },
+    { films: 500, worst: 3989, best: 3498 },
+    { films: 1000, worst: 8977, best: 7987 },
+  ])('building a list of $films from nothing takes $best to $worst comparisons in all', ({ films, worst, best }) => {
+    // Every new film at #1 is the most comparisons per film; every film at the bottom, the fewest.
+    let atTop = 0;
+    let atBottom = 0;
+    for (let size = 0; size < films; size++) {
+      atTop += comparisonsToPlace(size, 0);
+      atBottom += comparisonsToPlace(size, size);
+    }
+
+    expect(atTop).toBe(worst);
+    expect(atBottom).toBe(best);
+    // The worst case is exactly the engine's promised upper bound summed over the list.
+    const sum = (round: (x: number) => number) =>
+      Array.from({ length: films }, (_, k) => round(Math.log2(k + 1))).reduce((a, b) => a + b, 0);
+    // Both ends match the engine's per-film bounds summed over the list.
+    expect(worst).toBe(sum(Math.ceil));
+    expect(best).toBe(sum(Math.floor));
+  });
+});
