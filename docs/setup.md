@@ -96,6 +96,8 @@ You can also press `i` (iOS Simulator) or `a` (Android emulator). Troubleshootin
 
 In the app, sign up with the username `demo`. Then open `supabase/demo/demo-account.sql` in the dashboard's **SQL Editor** and run it. The account now has 10 ranked films, 3 watched but unranked, and one review. The script replaces that account's list each time it runs, so run it right before a demo, not while a teammate is using the account. To prepare a different account, change `demo_username` at the top.
 
+For a long list (#64), sign up as `biglist` and run `supabase/demo/large-ranking.sql` instead. It ranks up to 250 of the films already saved in `movies`, in a shuffled order, and replaces that account's list. Change `list_size` at the top for more. If fewer films are saved, it ranks all of them and says how many; searching in the app saves more.
+
 ### Demo script
 
 1. Sign up a new account. Search, mark a film watched, and rank it: it becomes #1 with no comparisons.

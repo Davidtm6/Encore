@@ -151,6 +151,7 @@ supabase/
   functions/search-movies/        Edge Function: TMDB search that saves results (logic in search.ts and tmdb.ts, Jest-tested)
   seed.sql                        50 starter films with TMDB IDs
   demo/demo-account.sql           Fills a demo account with a ranked list and a review
+  demo/large-ranking.sql          Gives a test account a long ranked list (250 films by default)
   tests/                          Starter-catalog consistency test (Jest) and database tests (run-database-tests.sh)
 ```
 
