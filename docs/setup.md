@@ -93,7 +93,7 @@ In the app, sign up with the username `demo`. Then open `supabase/demo/demo-acco
 1. Sign up a new account. Search, mark a film watched, and rank it: it becomes #1 with no comparisons.
 2. Sign in as `demo`. Rank an unranked film; it takes about 4 comparisons. Cancel one ranking partway and check that the list didn't change.
 3. Re-rank a film. Write a review, then edit it.
-4. Close and reopen the app; you're still signed in. Sign out and back in; everything is still there.
+4. Close and reopen the app; you're still signed in. Tap **Sign out**: it asks first, and **Cancel** keeps you signed in. Sign out and back in; everything is still there.
 5. Sign out, tap **Forgot password?**, and reset the password with the emailed code. You land on My List, and the new password works the next time you sign in. This needs an address that can get the email; see [Password reset emails](#password-reset-emails).
 
 ## The shared development database
