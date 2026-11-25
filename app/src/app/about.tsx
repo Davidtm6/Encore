@@ -1,6 +1,8 @@
 import { Image } from 'expo-image';
+import { router } from 'expo-router';
 import { Linking, Pressable, ScrollView, StyleSheet } from 'react-native';
 
+import { Button } from '@/components/button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
@@ -20,6 +22,12 @@ export default function AboutScreen() {
           Rank the movies you watch by choosing between two at a time. Built for CSE 403 at the University
           of Washington.
         </ThemedText>
+        <Button
+          label="Help and FAQ"
+          variant="secondary"
+          accessibilityHint="How to use Encore and what its error messages mean"
+          onPress={() => router.push('/help')}
+        />
 
         <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionTitle}>
           Movie data

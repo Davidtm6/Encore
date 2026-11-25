@@ -61,6 +61,7 @@ function RootStack() {
         <Stack.Screen name="rank/[movieId]" options={{ presentation: 'modal', title: 'Rank' }} />
         <Stack.Screen name="review/[movieId]" options={{ presentation: 'modal', title: 'Review' }} />
         <Stack.Screen name="about" options={{ presentation: 'modal', title: 'About' }} />
+        <Stack.Screen name="help" options={{ presentation: 'modal', title: 'Help' }} />
         {/* A friend's page; the screen sets the title to their username once it loads. */}
         <Stack.Screen name="friend/[userId]" options={{ title: 'Friend' }} />
         {/* A movie's page with your take and your friends'; the screen sets the title to the movie's. */}

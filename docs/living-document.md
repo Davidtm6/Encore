@@ -216,7 +216,8 @@ Every bug is filed in GitHub Issues with reproduction steps and labels for sever
 
 | Document | Audience | Contents | Owner, due |
 | --- | --- | --- | --- |
-| In-app help | Users | First-run tips for adding and ranking a movie; a short FAQ explaining common errors | David, week 7 |
+| In-app help | Users | First-run tips for adding and ranking a movie (shown on an empty My List); a short FAQ explaining common errors (About → Help and FAQ, `app/src/app/help.tsx`) | David, week 7 |
+| [User guide](user-guide.md) | Users | Searching, ranking and re-ranking, reviews, removing movies, friends, common errors, and reporting bugs | Alex, week 8 |
 | README | Developers | Installing Expo, running the app in the iOS Simulator and Android emulator, setting up Supabase, loading sample movies, shipping TestFlight and Play builds; verified by someone outside the team on a clean machine | Nathan, week 7 |
 | Architecture notes | Developers | Main components, the data model, and RLS policies | Alex, week 6 |
 | Contributing guide | Team | Branch naming, PR review rules, and how to file bugs | Nathan, week 2 |

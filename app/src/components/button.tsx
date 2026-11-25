@@ -13,6 +13,8 @@ type ButtonProps = {
   busy?: boolean;
   /** Read by screen readers when the visible label needs more context. */
   accessibilityLabel?: string;
+  /** Read by screen readers after the label, to say what pressing it does. */
+  accessibilityHint?: string;
 };
 
 export function Button({
@@ -23,6 +25,7 @@ export function Button({
   disabled = false,
   busy = false,
   accessibilityLabel,
+  accessibilityHint,
 }: ButtonProps) {
   const theme = useTheme();
   const color = { primary: theme.onAccent, secondary: theme.text, plain: theme.accentText }[variant];
@@ -31,6 +34,7 @@ export function Button({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityHint={accessibilityHint}
       accessibilityState={{ disabled: disabled || busy, busy }}
       disabled={disabled || busy}
       onPress={onPress}
