@@ -27,7 +27,9 @@ export default function MovieScreen() {
   return (
     <ThemedView style={styles.fill}>
       <Stack.Screen options={{ title: page?.movie.title ?? 'Movie' }} />
+      {/* iOS 26 draws this pushed screen under its glass header; "automatic" insets the content below it. */}
       <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}>
         {error && <ErrorBanner message={error} onRetry={reload} />}
