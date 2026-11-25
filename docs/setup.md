@@ -76,13 +76,21 @@ npm start           # tunnel: works on any network, including eduroam
 npm run start:lan   # faster reloads when your phone and laptop share a home Wi-Fi
 ```
 
+**Which to use:**
+- **Tunnel (`npm start`):** works anywhere, including campus Wi-Fi, which blocks devices on the network from reaching each other. Reloads are slower because traffic goes through Expo's servers. It may need you to sign in to Expo; see Troubleshooting below.
+- **LAN (`npm run start:lan`):** faster, and needs no Expo account, but your phone and computer must be on the same network, and that network must let them talk to each other. Home Wi-Fi usually does; eduroam doesn't. Your computer's firewall also has to let the phone reach port 8081; see Troubleshooting below.
+
 Inside `app/`, `npm start` is the LAN mode and `npm run start:tunnel` is the tunnel. Open the app on your phone:
 - **iPhone:** scan the QR code with the Camera app, then tap **Open in Expo Go**.
 - **Android:** scan the QR code from inside Expo Go. The system camera says "no usable data found".
 
 You can also press `i` (iOS Simulator) or `a` (Android emulator). Troubleshooting:
 - **The app shows a red screen about `EXPO_PUBLIC_SUPABASE_URL`:** restart with `npx expo start -c` in `app/` to clear the cache.
+- **`Couldn't create a signed tunnel URL for this project. You're not logged in to your Expo account`:** the tunnel needs an Expo account. Create a free one at <https://expo.dev/signup>, run `npx expo login` in `app/`, and sign in to Expo Go on your phone with the same account. Then run `npm start` again.
 - **The tunnel won't connect:** try `npm run start:lan` on a home network.
+- **LAN mode: Expo Go can't connect or times out:** check that the phone and computer are on the same Wi-Fi, not a guest or campus network. Then let incoming connections reach Node.js through your computer's firewall, rather than turning the firewall off:
+  - **macOS:** **System Settings → Network → Firewall → Options**: allow incoming connections for `node`, or answer **Allow** when macOS asks the first time you start Expo.
+  - **Windows:** when Windows Defender Firewall asks about Node.js, allow it on **Private networks**, and make sure your Wi-Fi is set to a private network.
 
 ### 4. Prepare a demo account
 
