@@ -62,7 +62,7 @@ The runner connects with the usual `PG*` variables (`PGHOST`, `PGPORT`, `PGUSER`
 
 ### The TMDB format test
 
-`tmdb-contract.test.ts` calls TMDB's search endpoint, so it needs TMDB's **API Read Access Token**. Without `TMDB_READ_ACCESS_TOKEN` set, Jest skips it, so `npm test` works without a token. To run it, enter the token at the silent prompt, which keeps it out of your shell history:
+`tmdb-contract.test.ts` calls TMDB's search and credits endpoints, so it needs TMDB's **API Read Access Token**. Without `TMDB_READ_ACCESS_TOKEN` set, Jest skips it, so `npm test` works without a token. To run it, enter the token at the silent prompt, which keeps it out of your shell history:
 
 ```sh
 read -s TMDB_READ_ACCESS_TOKEN && export TMDB_READ_ACCESS_TOKEN && npm test -- tmdb-contract
@@ -78,10 +78,12 @@ read -s TMDB_READ_ACCESS_TOKEN && export TMDB_READ_ACCESS_TOKEN && npm test -- t
 | `supabase/functions/search-movies/search.test.ts` | The search function's logic with fake TMDB and database calls. It covers reading the query (trimmed, capped at 100 characters), the TMDB URL (no adult results; popular movies for an empty query), saving results and returning them in TMDB's order with their overviews, near-match suggestions for a query that finds nothing, and the fallbacks: saved movies (marked `fromSaved`) when TMDB or saving fails, an error only when that fails too |
 | `supabase/functions/search-movies/typo.test.ts` | Typo tolerance: the looser queries tried for a misspelled search, edit distance, and which titles are close enough to suggest, nearest first |
 | `supabase/functions/search-movies/tmdb.test.ts` | How TMDB results become `movies` rows: year and poster parsing; dropping adult, untitled, and repeated results while keeping TMDB's order; trimming overviews; escaping search wildcards |
+| `supabase/functions/search-movies/credits.test.ts` | Directors: picking the director out of TMDB's credits (none, one, several, repeated), reading a `directorsFor` request, and looking up only the directors still missing, carrying on when one lookup fails |
 | `supabase/functions/search-movies/tmdb-contract.test.ts` | That TMDB's live search response still has the fields the search function reads (`id`, `title`, `release_date`, `poster_path`, `overview`, `adult`), checked on one known film. It skips when `TMDB_READ_ACCESS_TOKEN` isn't set |
 | `supabase/tests/starter-catalog.test.ts` | That `seed.sql`, the two TMDB migrations, and the demo script agree on the same 50 films, TMDB IDs, and posters |
 | `supabase/tests/database/ranking-and-access.test.sql` | Sign-up creating profiles, marking movies watched, `save_ranking` (including every rejection), reviews, and what another user or a signed-out user can and can't do |
 | `supabase/tests/database/remove-watched.test.sql` | Removing a movie from the watched list: the ranking closes up (including several removals at once), the review goes too, and nobody can remove another user's movies |
+| `supabase/tests/database/movie-director.test.sql` | The `director` column: empty names are rejected, and signed-in users can read it but not change it |
 | `supabase/tests/database/starter-catalog.test.sql` | The seed and demo script on a fresh database, both safe to rerun, and the TMDB migrations being no-ops there |
 | `supabase/tests/database/tmdb-migrations.test.sql` | Both TMDB migrations on the shared database's old state: films relabeled with row ids kept, lists, rankings, and reviews untouched, a film search already saved left alone, and posters filled only where missing |
 | `prototype/ranking.test.ts` and `prototype/test_ranking.py` | The reference binary-insertion prototypes |

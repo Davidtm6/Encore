@@ -21,24 +21,30 @@ type MovieCardProps = {
   children?: ReactNode;
 };
 
-/** One movie as a list row: poster, title and details, and an optional rank. */
+/** One movie as a list row: poster, title, year and director, and an optional rank. */
 export function MovieCard({ movie, rank, note, description, highlighted = false, children }: MovieCardProps) {
   const theme = useTheme();
-  const details = [movie.release_year, note].filter(Boolean).join(' · ');
+  // The director helps tell similar films apart (#61); it's left out when unknown.
+  const details = [movie.release_year, movie.director, note].filter(Boolean).join(' · ');
+  const spokenDetails = [movie.release_year, movie.director && `directed by ${movie.director}`, note]
+    .filter(Boolean)
+    .join(', ');
 
   return (
     <View style={[styles.row, highlighted && { backgroundColor: theme.accentSoft }]}>
       <View
         style={styles.summary}
         accessible
-        accessibilityLabel={[rank && `Number ${rank}`, movie.title, details, description].filter(Boolean).join(', ')}>
+        accessibilityLabel={[rank && `Number ${rank}`, movie.title, spokenDetails, description]
+          .filter(Boolean)
+          .join(', ')}>
         <PosterTile movie={movie} />
         <View style={styles.text}>
           <ThemedText type="smallBold" style={styles.title} numberOfLines={2}>
             {movie.title}
           </ThemedText>
           {details ? (
-            <ThemedText type="small" themeColor="textSecondary">
+            <ThemedText type="small" themeColor="textSecondary" numberOfLines={2}>
               {details}
             </ThemedText>
           ) : null}

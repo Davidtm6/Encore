@@ -6,6 +6,7 @@ export type Database = {
     Tables: {
       movies: {
         Row: {
+          director: string | null;
           id: number;
           poster_url: string | null;
           provider: string;
@@ -15,6 +16,7 @@ export type Database = {
         };
         ComputedFields: never;
         Insert: {
+          director?: string | null;
           id?: never;
           poster_url?: string | null;
           provider: string;
@@ -23,6 +25,7 @@ export type Database = {
           title: string;
         };
         Update: {
+          director?: string | null;
           id?: never;
           poster_url?: string | null;
           provider?: string;
