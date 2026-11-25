@@ -1,4 +1,4 @@
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { ActivityIndicator, SectionList, StyleSheet, View } from 'react-native';
 
 import { ErrorBanner } from '@/components/error-banner';
@@ -71,7 +71,12 @@ export default function FriendProfileScreen() {
 function FriendMovieRow({ item }: { item: WatchedMovie }) {
   const { movie, rankPosition, review } = item;
   return (
-    <MovieCard movie={movie} rank={rankPosition ?? undefined} note={review ? 'Reviewed' : undefined}>
+    <MovieCard
+      movie={movie}
+      rank={rankPosition ?? undefined}
+      note={review ? 'Reviewed' : undefined}
+      onPress={() => router.push({ pathname: '/movie/[movieId]', params: { movieId: String(movie.id) } })}
+      accessibilityHint="Opens the movie’s page with your and your friends’ ranks and reviews">
       {review ? (
         <ThemedText
           type="small"

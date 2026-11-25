@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { PosterTile } from '@/components/poster-tile';
 import { RankBadge } from '@/components/rank-badge';
@@ -17,12 +17,25 @@ type MovieCardProps = {
   description?: string | null;
   /** Briefly marks a row, for example the movie that was just ranked. */
   highlighted?: boolean;
+  /** Makes the poster and title a button, for example to open the movie's page. */
+  onPress?: () => void;
+  /** Read by screen readers when the row is a button, saying what pressing it does. */
+  accessibilityHint?: string;
   /** Action buttons. */
   children?: ReactNode;
 };
 
 /** One movie as a list row: poster, title, year and director, and an optional rank. */
-export function MovieCard({ movie, rank, note, description, highlighted = false, children }: MovieCardProps) {
+export function MovieCard({
+  movie,
+  rank,
+  note,
+  description,
+  highlighted = false,
+  onPress,
+  accessibilityHint,
+  children,
+}: MovieCardProps) {
   const theme = useTheme();
   // The director helps tell similar films apart (#61); it's left out when unknown.
   const details = [movie.release_year, movie.director, note].filter(Boolean).join(' · ');
@@ -30,14 +43,18 @@ export function MovieCard({ movie, rank, note, description, highlighted = false,
     .filter(Boolean)
     .join(', ');
 
+  const label = [rank && `Number ${rank}`, movie.title, spokenDetails, description].filter(Boolean).join(', ');
+
   return (
     <View style={[styles.row, highlighted && { backgroundColor: theme.accentSoft }]}>
-      <View
-        style={styles.summary}
+      <Pressable
+        style={({ pressed }) => [styles.summary, onPress && pressed && styles.pressed]}
         accessible
-        accessibilityLabel={[rank && `Number ${rank}`, movie.title, spokenDetails, description]
-          .filter(Boolean)
-          .join(', ')}>
+        accessibilityRole={onPress ? 'button' : undefined}
+        accessibilityLabel={label}
+        accessibilityHint={onPress ? accessibilityHint : undefined}
+        disabled={!onPress}
+        onPress={onPress}>
         <PosterTile movie={movie} />
         <View style={styles.text}>
           <ThemedText type="smallBold" style={styles.title} numberOfLines={2}>
@@ -55,7 +72,7 @@ export function MovieCard({ movie, rank, note, description, highlighted = false,
           ) : null}
         </View>
         {rank !== undefined && <RankBadge rank={rank} />}
-      </View>
+      </Pressable>
       {children ? <View style={styles.actions}>{children}</View> : null}
     </View>
   );
@@ -81,6 +98,9 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 16,
     lineHeight: 22,
+  },
+  pressed: {
+    opacity: 0.7,
   },
   actions: {
     flexDirection: 'row',

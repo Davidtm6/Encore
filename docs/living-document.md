@@ -294,7 +294,7 @@ Genre, display name, a separate rankings table, and matchup rate limits are not 
 
 ## 8. Software design
 
-The repository has two top-level code folders: `app/` (Expo app) and `supabase/` (database and movie search). A third, `server/` (Encore API and ranking re-check), is deferred (see 7.5). In the app, screens call hooks and hooks call services. There is one screen per use case area: sign in and sign up, my movies, search, ranking, and reviews. Following the Expo template, app code lives under `app/src/`. Routes are in `app/src/app/`, and the folders below are `app/src/components`, `app/src/hooks`, and `app/src/services`. The ranking engine is in `app/src/ranking`.
+The repository has two top-level code folders: `app/` (Expo app) and `supabase/` (database and movie search). A third, `server/` (Encore API and ranking re-check), is deferred (see 7.5). In the app, screens call hooks and hooks call services. There is one screen per use case area: sign in and sign up, my movies, search, ranking, and reviews, plus the social screens: friends, a friend's page, and a movie's page (your rank and review, friends' ranks and reviews, and public reviews, #40). Following the Expo template, app code lives under `app/src/`. Routes are in `app/src/app/`, and the folders below are `app/src/components`, `app/src/hooks`, and `app/src/services`. The ranking engine is in `app/src/ranking`.
 
 - **Components (`app/components`):** a few shared display components (`MovieCard`, `ComparisonPair`, `RankedList`, `ErrorBanner`) that render data and collect input.
 - **Hooks (`app/hooks`):** one per screen (`useSession`, `useMovieSearch`, `useMyMovies`, `useRanking`, `useReview`). Each holds the screen's state, calls services, and handles loading, errors, and retries.
