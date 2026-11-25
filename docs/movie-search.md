@@ -48,6 +48,8 @@ The same function also fills in each film's director; see [Directors](#directors
 | `supabase/functions/search-movies/typo.ts` | Near matches for a misspelled query: the looser queries to try, and which titles are close enough to suggest |
 | `supabase/config.toml` (`[functions.search-movies]`) | The function's settings, including `verify_jwt` |
 | `supabase/migrations/20261119000000_movie_director.sql` | Added the `director` column |
+| `supabase/migrations/20261127000000_movie_tmdb_rating.sql` | Added `vote_average` and `vote_count` |
+| `app/src/services/tmdb-rating.ts` | How the TMDB score is shown, and the low-vote cutoff |
 | `supabase/migrations/20261029000000_sample_films_to_tmdb.sql` | Gave the 50 starter films their TMDB IDs |
 | `supabase/migrations/20261029010000_starter_film_posters.sql` | Gave the 50 starter films their posters |
 | `supabase/seed.sql` | The 50 starter films for fresh databases, with TMDB IDs and posters |
@@ -60,7 +62,7 @@ The same function also fills in each film's director; see [Directors](#directors
 
 | Status | Body | When |
 | --- | --- | --- |
-| 200 | `{ "movies": [{ "id", "title", "release_year", "poster_url", "director", "overview" }] }` | Normal results, in TMDB's order. `release_year`, `poster_url`, `director`, and `overview` can be `null`. `director` is whatever is already saved; search never looks it up (see [Directors](#directors)). `overview` is the start of TMDB's plot summary (up to 200 characters, cut at a word), which the Search screen shows to tell same-titled films apart. It's passed through from TMDB and not stored, so fallback results don't have it. |
+| 200 | `{ "movies": [{ "id", "title", "release_year", "poster_url", "director", "vote_average", "vote_count", "overview" }] }` | Normal results, in TMDB's order. `release_year`, `poster_url`, `director`, `vote_average`, `vote_count`, and `overview` can be `null`. `vote_average` and `vote_count` are TMDB's audience score and its number of votes; see [How movies are stored](#how-movies-are-stored). `director` is whatever is already saved; search never looks it up (see [Directors](#directors)). `overview` is the start of TMDB's plot summary (up to 200 characters, cut at a word), which the Search screen shows to tell same-titled films apart. It's passed through from TMDB and not stored, so fallback results don't have it. |
 | 200 | `{ "movies": [], "suggestions": [...] }` | The query found nothing, but some titles are close to it. `suggestions` has the same shape as `movies`, nearest first, at most 5. The Search screen lists them under "Did you mean". The key is left out when there are none. |
 | 200 | `{ "movies": [...], "fromSaved": true }` from saved movies | TMDB failed; see below. The Search screen says that live search isn't available and that these results have no plot summaries. |
 | 401 | An auth error | No valid signed-in token. The app shows "Your session expired." |
@@ -98,6 +100,7 @@ Limits:
 - `provider` is `'tmdb'` and `provider_movie_id` is TMDB's ID as text. The pair is unique.
 - `poster_url` is a full URL at TMDB's `w342` size, for example `https://image.tmdb.org/t/p/w342/<file>.jpg`, or `null` when TMDB has no poster. The app shows a colored tile with the title's initials when it's `null`.
 - `release_year` is the first four digits of TMDB's `release_date`, or `null`.
+- `vote_average` (0–10, one decimal place) and `vote_count` are TMDB's audience score and how many votes it rests on (#85). They come with every search result, so each search refreshes them; films not searched since the column was added have `null`. Search shows the score as "★ 8.5" after the year and director, and hides it below 10 votes (`MIN_VOTES` in `app/src/services/tmdb-rating.ts`), since a score from a couple of votes is misleading. Screen readers hear "TMDB rating 8.5 out of 10". It isn't shown on My List or the movie page, so it doesn't pull people's own rankings toward the crowd's.
 - `movies` grows as people search. Nothing deletes rows: a movie in someone's list can't be deleted (`on delete restrict`), and unused rows cost almost nothing.
 - **The 50 starter films** came from `seed.sql` before search used TMDB, labeled `'sample'`. Two migrations converted them in place:
   - the first relabeled each one with its TMDB ID;
@@ -164,7 +167,9 @@ The About screen (`app/src/app/about.tsx`, opened from My List) covers all three
 | Test | What it checks |
 | --- | --- |
 | `supabase/functions/search-movies/search.test.ts` | The function's logic with fake TMDB and database calls: the query, the URL, saving and ordering, and every fallback |
-| `supabase/functions/search-movies/tmdb.test.ts` | How TMDB results become rows |
+| `supabase/functions/search-movies/tmdb.test.ts` | How TMDB results become rows, including the score and vote count |
+| `app/src/services/tmdb-rating.test.ts` | How the score is shown, and hiding it under 10 votes |
+| `supabase/tests/database/movie-rating.test.sql` | The score columns: 0–10 and one decimal place, readable but not writable by users |
 | `supabase/functions/search-movies/credits.test.ts` | Picking the director out of a credits response (none, one, several), reading a director request, and filling in only the missing directors |
 | `supabase/functions/search-movies/typo.test.ts` | The looser queries for a misspelled search, and which titles are close enough to suggest |
 | `supabase/functions/search-movies/tmdb-contract.test.ts` | That TMDB's live search and credits responses still have the fields we read. It skips without `TMDB_READ_ACCESS_TOKEN` |

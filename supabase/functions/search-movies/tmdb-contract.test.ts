@@ -19,6 +19,8 @@ describeWithToken('TMDB search response', () => {
         poster_path: expect.any(String),
         overview: expect.any(String),
         adult: expect.any(Boolean),
+        vote_average: expect.any(Number),
+        vote_count: expect.any(Number),
     }));
 
     const rows = toMovieRows(results);

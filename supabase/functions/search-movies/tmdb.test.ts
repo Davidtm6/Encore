@@ -1,9 +1,16 @@
-import { escapeLike, MAX_OVERVIEW_LENGTH, POSTER_BASE_URL, shortOverview, toMovieRows } from './tmdb.ts';
+import { escapeLike, MAX_OVERVIEW_LENGTH, POSTER_BASE_URL, shortOverview, tmdbRating, toMovieRows } from './tmdb.ts';
 
 describe('toMovieRows', () => {
   it('maps a TMDB result to a movies row', () => {
     const rows = toMovieRows([
-      { id: 496243, title: 'Parasite', release_date: '2019-05-30', poster_path: '/abc.jpg' },
+      {
+        id: 496243,
+        title: 'Parasite',
+        release_date: '2019-05-30',
+        poster_path: '/abc.jpg',
+        vote_average: 8.497,
+        vote_count: 19876,
+      },
     ]);
 
     expect(rows).toEqual([
@@ -13,6 +20,8 @@ describe('toMovieRows', () => {
         title: 'Parasite',
         release_year: 2019,
         poster_url: `${POSTER_BASE_URL}/abc.jpg`,
+        vote_average: 8.5,
+        vote_count: 19876,
       },
     ]);
   });
@@ -49,6 +58,30 @@ describe('toMovieRows', () => {
 
   it('returns nothing for no results', () => {
     expect(toMovieRows([])).toEqual([]);
+  });
+});
+
+describe('tmdbRating', () => {
+  it('rounds the score to one decimal place and keeps the vote count', () => {
+    expect(tmdbRating({ vote_average: 7.849, vote_count: 312 })).toEqual({ vote_average: 7.8, vote_count: 312 });
+    expect(tmdbRating({ vote_average: 0, vote_count: 0 })).toEqual({ vote_average: 0, vote_count: 0 });
+    expect(tmdbRating({ vote_average: 10, vote_count: 1 })).toEqual({ vote_average: 10, vote_count: 1 });
+  });
+
+  it('is null when TMDB has no score', () => {
+    expect(tmdbRating({})).toEqual({ vote_average: null, vote_count: null });
+  });
+
+  it('drops values that are not sensible numbers', () => {
+    const odd = [
+      { vote_average: 11, vote_count: -3 },
+      { vote_average: -0.5, vote_count: 2.5 },
+      { vote_average: Number.NaN, vote_count: Number.POSITIVE_INFINITY },
+      { vote_average: '8.5', vote_count: '100' },
+    ] as unknown as { vote_average: number; vote_count: number }[];
+    for (const movie of odd) {
+      expect(tmdbRating(movie)).toEqual({ vote_average: null, vote_count: null });
+    }
   });
 });
 
