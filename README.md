@@ -4,6 +4,8 @@ Encore is a social movie-ranking mobile app for iOS and Android built for CSE 40
 
 Team: Alexander Knotwell, David Tong, Lucas Mesfin, Pavan Chaganti, and Nathan Simon. Roles, schedule, and process are in the [living document](docs/living-document.md).
 
+**Using the app?** The [user guide](docs/user-guide.md) covers searching, ranking and re-ranking, reviews, removing movies, friends, common errors, and reporting bugs. The app has a shorter version under **About → Help and FAQ**.
+
 Contents: [Operational use cases](#operational-use-cases) · [Prerequisites](#prerequisites) · [Build](#build) · [Test](#test) · [Run](#run) · [Architecture](#architecture) · [Repository layout](#repository-layout) · [Contributing and bugs](#contributing-and-bugs)
 
 ## Operational use cases
@@ -171,5 +173,5 @@ The prototype ranks sample titles in the terminal, without a movie API or databa
 
 [CONTRIBUTING.md](CONTRIBUTING.md) explains the workflow:
 - **Version control:** branch from `main` with a prefix such as `feature/` or `fix/`, write descriptive commits, and open a pull request. The "Protect main" ruleset requires a PR and passing CI checks, and blocks force-pushes. Every PR gets one review from a teammate, and any PR that changes setup or behavior updates the relevant doc.
-- **Bug tracking:** file bugs in [GitHub Issues](https://github.com/Davidtm6/Encore/issues) with **New issue → Bug report**. The template asks for steps to reproduce, expected and actual behavior, the use case, the device, and severity. Bugs are triaged at the weekly planning meeting, and each fix gets a regression test.
+- **Bug tracking:** users can follow [Report a bug](docs/user-guide.md#report-a-bug) in the user guide. File bugs in [GitHub Issues](https://github.com/Davidtm6/Encore/issues) with **New issue → Bug report**. The template asks for steps to reproduce, expected and actual behavior, the use case, the device, and severity. Bugs are triaged at the weekly planning meeting, and each fix gets a regression test.
 - **Code style:** Google TypeScript Style Guide and Airbnb React/JSX Style Guide; see [coding guidelines](docs/living-document.md#9-coding-guidelines). Today, `npm run build` enforces ESLint with `eslint-config-expo` and the TypeScript compiler.

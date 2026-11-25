@@ -184,14 +184,36 @@ function WatchedRow({ item, highlighted }: WatchedRowProps) {
   );
 }
 
+/**
+ * First-run tips (#80, #20): what ranking is, before the first movie. Ranking
+ * needs a movie in the list, so the button starts at Search.
+ */
 function EmptyList() {
   return (
     <View style={styles.empty}>
-      <ThemedText>Nothing here yet.</ThemedText>
-      <ThemedText type="small" themeColor="textSecondary">
-        Find a movie you’ve watched, mark it watched, and rank it.
+      <ThemedText type="subtitle" accessibilityRole="header">
+        Rank your first movie
       </ThemedText>
-      <Button label="Search movies" onPress={() => router.navigate('/search')} />
+      <ThemedText themeColor="textSecondary">
+        Encore builds your list by asking which of two movies you liked more.
+      </ThemedText>
+      <View style={styles.steps}>
+        <ThemedText type="small">1. Search for a movie you’ve seen and press Mark watched.</ThemedText>
+        <ThemedText type="small">
+          2. Press Rank and say whether you loved it, thought it was okay, or didn’t like it. Your first movie goes
+          straight to #1.
+        </ThemedText>
+        <ThemedText type="small">
+          3. Each movie after that is compared with ones you felt the same about, two at a time, until it finds its
+          place.
+        </ThemedText>
+      </View>
+      <Button
+        label="Rank your first movie"
+        accessibilityHint="Opens Search so you can pick a movie you’ve watched"
+        onPress={() => router.navigate('/search')}
+      />
+      <Button label="Help and FAQ" variant="plain" onPress={() => router.push('/help')} />
     </View>
   );
 }
@@ -244,5 +266,8 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
     paddingTop: Spacing.five,
     alignItems: 'flex-start',
+  },
+  steps: {
+    gap: Spacing.two,
   },
 });
