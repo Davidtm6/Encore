@@ -164,7 +164,9 @@ function WatchedRow({ item, highlighted, onRemove }: WatchedRowProps) {
       movie={movie}
       rank={rankPosition ?? undefined}
       note={review ? 'Reviewed' : undefined}
-      highlighted={highlighted}>
+      highlighted={highlighted}
+      onPress={() => router.push({ pathname: '/movie/[movieId]', params })}
+      accessibilityHint="Opens the movie’s page with your friends’ ranks and reviews">
       <Button
         size="small"
         variant="plain"
