@@ -16,7 +16,7 @@ import { useMyMovies } from '@/hooks/use-my-movies';
 import { useTheme } from '@/hooks/use-theme';
 import { signOut } from '@/services/auth-service';
 import { messageOf } from '@/services/errors';
-import { removeWatched, type WatchedMovie } from '@/services/watched-service';
+import type { WatchedMovie } from '@/services/watched-service';
 
 /** How long a just-ranked movie stays highlighted. */
 const HIGHLIGHT_MS = 3000;
@@ -80,28 +80,6 @@ export default function MyListScreen() {
     return () => clearTimeout(timer);
   }, [savedInPlace, savedIndex, rankingSection]);
 
-  async function remove(item: WatchedMovie) {
-    const { movie, rankPosition, review } = item;
-    const lost = [rankPosition && `its #${rankPosition} spot`, review && 'your review'].filter(Boolean).join(' and ');
-    const confirmed = await confirmAction(
-      `Remove ${movie.title}?`,
-      lost ? `This also deletes ${lost}.` : 'You can add it again from Search.',
-      'Remove',
-    );
-    if (!confirmed) {
-      return;
-    }
-    try {
-      await removeWatched(movie.id);
-      if (saved?.movieId === movie.id) {
-        setSaved(null);
-      }
-      await reload();
-    } catch (e) {
-      Alert.alert('Couldn’t remove the movie', messageOf(e));
-    }
-  }
-
   return (
     <ThemedView style={styles.fill}>
       <SafeAreaView style={styles.page} edges={['top']}>
@@ -141,7 +119,7 @@ export default function MyListScreen() {
               </ThemedText>
             )}
             renderItem={({ item }) => (
-              <WatchedRow item={item} highlighted={item.movie.id === highlightId} onRemove={() => remove(item)} />
+              <WatchedRow item={item} highlighted={item.movie.id === highlightId} />
             )}
             ItemSeparatorComponent={ListSeparator}
             ListEmptyComponent={error ? undefined : EmptyList}
@@ -171,14 +149,16 @@ export default function MyListScreen() {
 type WatchedRowProps = {
   item: WatchedMovie;
   highlighted: boolean;
-  onRemove: () => void;
 };
 
-function WatchedRow({ item, highlighted, onRemove }: WatchedRowProps) {
+/**
+ * One compact row (#56): poster, title, year, director, and rank. Tapping it
+ * opens the movie's page, which has Re-rank, Review, and Remove. A movie that
+ * isn't ranked yet keeps one Rank button, since ranking is its next step.
+ */
+function WatchedRow({ item, highlighted }: WatchedRowProps) {
   const { movie, rankPosition, review } = item;
   const params = { movieId: String(movie.id) };
-  const rankLabel = rankPosition ? 'Re-rank' : 'Rank';
-  const reviewLabel = review ? 'Edit review' : 'Review';
 
   return (
     <MovieCard
@@ -186,31 +166,20 @@ function WatchedRow({ item, highlighted, onRemove }: WatchedRowProps) {
       rank={rankPosition ?? undefined}
       note={review ? 'Reviewed' : undefined}
       highlighted={highlighted}
+      compact
       onPress={() => router.push({ pathname: '/movie/[movieId]', params })}
-      accessibilityHint="Opens the movie’s page with your friends’ ranks and reviews">
-      <Button
-        size="small"
-        variant="plain"
-        label="Remove"
-        accessibilityLabel={`Remove ${movie.title} from your list`}
-        onPress={onRemove}
-      />
-      <Button
-        size="small"
-        variant="secondary"
-        label={reviewLabel}
-        accessibilityLabel={`${reviewLabel}: ${movie.title}`}
-        onPress={() => router.push({ pathname: '/review/[movieId]', params })}
-      />
-      <Button
-        size="small"
-        // An unranked movie's next step is ranking it, so that button is filled.
-        variant={rankPosition ? 'secondary' : 'primary'}
-        label={rankLabel}
-        accessibilityLabel={`${rankLabel} ${movie.title}`}
-        onPress={() => router.push({ pathname: '/rank/[movieId]', params })}
-      />
-    </MovieCard>
+      accessibilityHint="Opens the movie’s page to re-rank, review, or remove it, and see your friends’ takes"
+      trailing={
+        rankPosition === null ? (
+          <Button
+            size="small"
+            label="Rank"
+            accessibilityLabel={`Rank ${movie.title}`}
+            onPress={() => router.push({ pathname: '/rank/[movieId]', params })}
+          />
+        ) : undefined
+      }
+    />
   );
 }
 

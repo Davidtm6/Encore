@@ -24,7 +24,11 @@ type MovieCardProps = {
   onPress?: () => void;
   /** Read by screen readers when the row is a button, saying what pressing it does. */
   accessibilityHint?: string;
-  /** Action buttons. */
+  /** Shown at the right end of the row instead of the rank, for example a single Rank button. */
+  trailing?: ReactNode;
+  /** Less vertical padding, for long lists like My List (#56). */
+  compact?: boolean;
+  /** Action buttons, on their own line under the row. */
   children?: ReactNode;
 };
 
@@ -38,6 +42,8 @@ export function MovieCard({
   highlighted = false,
   onPress,
   accessibilityHint,
+  trailing,
+  compact = false,
   children,
 }: MovieCardProps) {
   const theme = useTheme();
@@ -50,7 +56,8 @@ export function MovieCard({
   const label = [rank && `Number ${rank}`, movie.title, spokenDetails, description].filter(Boolean).join(', ');
 
   return (
-    <View style={[styles.row, highlighted && { backgroundColor: theme.accentSoft }]}>
+    <View style={[styles.row, compact && styles.compact, highlighted && { backgroundColor: theme.accentSoft }]}>
+      <View style={styles.line}>
       <Pressable
         style={({ pressed }) => [styles.summary, onPress && pressed && styles.pressed]}
         accessible
@@ -77,6 +84,9 @@ export function MovieCard({
         </View>
         {rank !== undefined && <RankBadge rank={rank} />}
       </Pressable>
+      {/* Outside the row's own button, so screen readers reach it separately. */}
+      {trailing}
+      </View>
       {children ? <View style={styles.actions}>{children}</View> : null}
     </View>
   );
@@ -90,7 +100,16 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     gap: Spacing.two,
   },
+  compact: {
+    paddingVertical: Spacing.two,
+  },
+  line: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+  },
   summary: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.three,

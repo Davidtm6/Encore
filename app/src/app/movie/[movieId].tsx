@@ -1,8 +1,9 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import type { ReactNode } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/button';
+import { confirmAction } from '@/components/confirm';
 import { ErrorBanner } from '@/components/error-banner';
 import { ListSeparator } from '@/components/list-separator';
 import { MovieCard } from '@/components/movie-card';
@@ -12,7 +13,10 @@ import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useMoviePage } from '@/hooks/use-movie-page';
 import { useTheme } from '@/hooks/use-theme';
 import { commentsLabel } from '@/services/comments';
+import { messageOf } from '@/services/errors';
 import { placementLabel, spokenPlacement, type Take } from '@/services/movie-page';
+import { removalWarning } from '@/services/removal';
+import { removeWatched } from '@/services/watched-service';
 
 /**
  * A movie's page (#40): your rank and review, then your friends' ranks and
@@ -23,6 +27,31 @@ export default function MovieScreen() {
   const { page, loading, error, refreshing, refresh, reload } = useMoviePage(Number(movieId));
   const params = { movieId: String(movieId) };
   const countFor = (take: Take) => page?.commentCounts.get(take.userId) ?? 0;
+
+  /** Removing lives here rather than on every My List row (#56), behind the same confirmation. */
+  async function remove() {
+    if (!page?.mine) {
+      return;
+    }
+    const confirmed = await confirmAction(
+      `Remove ${page.movie.title}?`,
+      removalWarning(page.mine.placement?.position ?? null, page.mine.review !== null),
+      'Remove',
+    );
+    if (!confirmed) {
+      return;
+    }
+    try {
+      await removeWatched(page.movie.id);
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        await reload();
+      }
+    } catch (e) {
+      Alert.alert('Couldn’t remove the movie', messageOf(e));
+    }
+  }
 
   return (
     <ThemedView style={styles.fill}>
@@ -66,6 +95,15 @@ export default function MovieScreen() {
                       label={page.mine.placement ? 'Re-rank' : 'Rank'}
                       accessibilityLabel={`${page.mine.placement ? 'Re-rank' : 'Rank'} ${page.movie.title}`}
                       onPress={() => router.push({ pathname: '/rank/[movieId]', params })}
+                    />
+                  </View>
+                  <View style={styles.removeRow}>
+                    <Button
+                      size="small"
+                      variant="plain"
+                      label="Remove from your list"
+                      accessibilityLabel={`Remove ${page.movie.title} from your list`}
+                      onPress={remove}
                     />
                   </View>
                 </>
@@ -220,6 +258,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'flex-end',
     gap: Spacing.two,
+  },
+  removeRow: {
+    alignItems: 'flex-end',
   },
   take: {
     paddingVertical: Spacing.two,
