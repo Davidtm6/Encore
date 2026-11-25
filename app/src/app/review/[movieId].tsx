@@ -35,7 +35,8 @@ export default function ReviewScreen() {
     <ThemedView style={styles.fill}>
       <Stack.Screen options={{ title: review.exists ? 'Edit review' : 'Write review' }} />
       <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        {/* iOS 26 draws content under the glass header; "automatic" insets it below (#74). */}
+        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           {review.movie && <MovieCard movie={review.movie} />}
           {review.error && (
             <ErrorBanner message={review.error} onRetry={review.loaded ? undefined : review.reload} />

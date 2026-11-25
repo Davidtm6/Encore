@@ -26,7 +26,8 @@ export default function ForgotPasswordScreen() {
   return (
     <ThemedView style={styles.fill}>
       <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        {/* iOS 26 draws content under the glass header; "automatic" insets it below (#74). */}
+        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <ThemedText type="subtitle" accessibilityRole="header">
             {onCodeStep ? 'Choose a new password' : 'Reset your password'}
           </ThemedText>

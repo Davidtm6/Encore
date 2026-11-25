@@ -11,7 +11,8 @@ const TMDB_URL = 'https://www.themoviedb.org';
 export default function AboutScreen() {
   return (
     <ThemedView style={styles.fill}>
-      <ScrollView contentContainerStyle={styles.content}>
+      {/* iOS 26 draws content under the glass header; "automatic" insets it below (#74). */}
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
         <ThemedText type="subtitle" themeColor="accentText" accessibilityRole="header">
           Encore
         </ThemedText>
