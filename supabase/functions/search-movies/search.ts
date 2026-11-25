@@ -22,6 +22,9 @@ export interface Movie {
    * asks for it with `{ directorsFor }` once a film is on a list.
    */
   director?: string | null;
+  /** TMDB's audience score (0–10) and how many votes it's based on; null when TMDB has none. */
+  vote_average?: number | null;
+  vote_count?: number | null;
   /**
    * The start of TMDB's plot summary, so similar titles can be told apart.
    * Passed through from TMDB, not stored, so fallback results have none.

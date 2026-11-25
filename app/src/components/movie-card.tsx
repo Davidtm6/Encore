@@ -7,12 +7,15 @@ import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import type { Movie } from '@/services/movie-service';
+import type { RatingText } from '@/services/tmdb-rating';
 
 type MovieCardProps = {
   movie: Movie;
   /** Shown in a circle on the right for ranked movies. */
   rank?: number;
   note?: string;
+  /** TMDB's audience score, shown after the year and director (search results only, #85). */
+  rating?: RatingText | null;
   /** A line or two that tells similar films apart, such as the start of the plot. */
   description?: string | null;
   /** Briefly marks a row, for example the movie that was just ranked. */
@@ -21,7 +24,11 @@ type MovieCardProps = {
   onPress?: () => void;
   /** Read by screen readers when the row is a button, saying what pressing it does. */
   accessibilityHint?: string;
-  /** Action buttons. */
+  /** Shown at the right end of the row instead of the rank, for example a single Rank button. */
+  trailing?: ReactNode;
+  /** Less vertical padding, for long lists like My List (#56). */
+  compact?: boolean;
+  /** Action buttons, on their own line under the row. */
   children?: ReactNode;
 };
 
@@ -30,23 +37,27 @@ export function MovieCard({
   movie,
   rank,
   note,
+  rating,
   description,
   highlighted = false,
   onPress,
   accessibilityHint,
+  trailing,
+  compact = false,
   children,
 }: MovieCardProps) {
   const theme = useTheme();
   // The director helps tell similar films apart (#61); it's left out when unknown.
-  const details = [movie.release_year, movie.director, note].filter(Boolean).join(' · ');
-  const spokenDetails = [movie.release_year, movie.director && `directed by ${movie.director}`, note]
+  const details = [movie.release_year, movie.director, rating?.label, note].filter(Boolean).join(' · ');
+  const spokenDetails = [movie.release_year, movie.director && `directed by ${movie.director}`, rating?.spoken, note]
     .filter(Boolean)
     .join(', ');
 
   const label = [rank && `Number ${rank}`, movie.title, spokenDetails, description].filter(Boolean).join(', ');
 
   return (
-    <View style={[styles.row, highlighted && { backgroundColor: theme.accentSoft }]}>
+    <View style={[styles.row, compact && styles.compact, highlighted && { backgroundColor: theme.accentSoft }]}>
+      <View style={styles.line}>
       <Pressable
         style={({ pressed }) => [styles.summary, onPress && pressed && styles.pressed]}
         accessible
@@ -73,6 +84,9 @@ export function MovieCard({
         </View>
         {rank !== undefined && <RankBadge rank={rank} />}
       </Pressable>
+      {/* Outside the row's own button, so screen readers reach it separately. */}
+      {trailing}
+      </View>
       {children ? <View style={styles.actions}>{children}</View> : null}
     </View>
   );
@@ -86,7 +100,16 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     gap: Spacing.two,
   },
+  compact: {
+    paddingVertical: Spacing.two,
+  },
+  line: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+  },
   summary: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.three,

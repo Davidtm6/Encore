@@ -15,6 +15,7 @@ import { useMyMovies } from '@/hooks/use-my-movies';
 import { useTheme } from '@/hooks/use-theme';
 import { messageOf } from '@/services/errors';
 import type { Movie, SearchResult } from '@/services/movie-service';
+import { tmdbRatingText } from '@/services/tmdb-rating';
 import { markWatched, removeWatched } from '@/services/watched-service';
 
 function openRank(movie: Movie) {
@@ -74,7 +75,11 @@ export default function SearchScreen() {
       const isRanked = rankedIds.has(movie.id);
       const label = isRanked ? 'Re-rank' : 'Rank';
       return (
-        <MovieCard movie={movie} note={isRanked ? 'Ranked' : 'In your list'} description={movie.overview}>
+        <MovieCard
+          movie={movie}
+          note={isRanked ? 'Ranked' : 'In your list'}
+          rating={tmdbRatingText(movie.vote_average, movie.vote_count)}
+          description={movie.overview}>
           {!isRanked && justAdded.has(movie.id) && (
             <Button
               size="small"
@@ -98,7 +103,10 @@ export default function SearchScreen() {
       );
     }
     return (
-      <MovieCard movie={movie} description={movie.overview}>
+      <MovieCard
+        movie={movie}
+        rating={tmdbRatingText(movie.vote_average, movie.vote_count)}
+        description={movie.overview}>
         <Button
           size="small"
           label="Mark watched"

@@ -81,6 +81,8 @@ export type Database = {
           provider_movie_id: string
           release_year: number | null
           title: string
+          vote_average: number | null
+          vote_count: number | null
         }
         Insert: {
           director?: string | null
@@ -90,6 +92,8 @@ export type Database = {
           provider_movie_id: string
           release_year?: number | null
           title: string
+          vote_average?: number | null
+          vote_count?: number | null
         }
         Update: {
           director?: string | null
@@ -99,6 +103,8 @@ export type Database = {
           provider_movie_id?: string
           release_year?: number | null
           title?: string
+          vote_average?: number | null
+          vote_count?: number | null
         }
         Relationships: []
       }
