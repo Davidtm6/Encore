@@ -29,10 +29,10 @@ select pg_temp.expect_error('a movie can be marked watched only once',
   'insert into public.watched_movies (movie_id) values (1)', '23505');
 
 -- Rank the first film, insert two more, then reverse the order in one save.
-select public.save_ranking(array[1]::bigint[]);
-select public.save_ranking(array[2, 1]::bigint[]);
-select public.save_ranking(array[2, 3, 1]::bigint[]);
-select public.save_ranking(array[1, 3, 2]::bigint[]);
+select public.save_ranking(array[1]::bigint[], array_fill('loved'::text, array[1]));
+select public.save_ranking(array[2, 1]::bigint[], array_fill('loved'::text, array[2]));
+select public.save_ranking(array[2, 3, 1]::bigint[], array_fill('loved'::text, array[3]));
+select public.save_ranking(array[1, 3, 2]::bigint[], array_fill('loved'::text, array[3]));
 select pg_temp.check_equal('save_ranking rewrites the whole order, even reversed',
   (select string_agg(movie_id::text, ',' order by rank_position)
    from public.watched_movies where rank_position is not null), '1,3,2');
@@ -40,15 +40,15 @@ select pg_temp.check_equal('watched but unranked movies stay unranked',
   (select count(*)::text from public.watched_movies where rank_position is null), '1');
 
 select pg_temp.expect_error('save_ranking rejects a repeated movie',
-  'select public.save_ranking(array[1, 1, 3, 2]::bigint[])', '22023');
+  'select public.save_ranking(array[1, 1, 3, 2]::bigint[], array_fill(''loved''::text, array[4]))', '22023');
 select pg_temp.expect_error('save_ranking rejects an empty slot',
-  'select public.save_ranking(array[1, null, 3, 2]::bigint[])', '22023');
+  'select public.save_ranking(array[1, null, 3, 2]::bigint[], array_fill(''loved''::text, array[4]))', '22023');
 select pg_temp.expect_error('save_ranking rejects a missing order',
-  'select public.save_ranking(null)', '22023');
+  'select public.save_ranking(null, null)', '22023');
 select pg_temp.expect_error('save_ranking rejects a movie the user has not watched',
-  'select public.save_ranking(array[1, 3, 2, 5]::bigint[])', '22023');
+  'select public.save_ranking(array[1, 3, 2, 5]::bigint[], array_fill(''loved''::text, array[4]))', '22023');
 select pg_temp.expect_error('save_ranking rejects an order that drops a ranked movie',
-  'select public.save_ranking(array[1, 2]::bigint[])', '40001');
+  'select public.save_ranking(array[1, 2]::bigint[], array_fill(''loved''::text, array[2]))', '40001');
 select pg_temp.check_equal('a rejected save changes nothing',
   (select string_agg(movie_id::text, ',' order by rank_position)
    from public.watched_movies where rank_position is not null), '1,3,2');
@@ -75,7 +75,7 @@ select pg_temp.check_equal('another user cannot see your watched list',
 select pg_temp.check_equal('a friends-only review is hidden from someone who isn''t a friend (#15)',
   (select count(*)::text from public.reviews), '0');
 select pg_temp.expect_error('another user cannot rank your movies',
-  'select public.save_ranking(array[1]::bigint[])', '22023');
+  'select public.save_ranking(array[1]::bigint[], array_fill(''loved''::text, array[1]))', '22023');
 select pg_temp.expect_error('another user cannot add rows to your list',
   $$insert into public.watched_movies (user_id, movie_id)
     values ('00000000-0000-0000-0000-00000000000a', 5)$$, '42501');
@@ -87,7 +87,7 @@ select pg_temp.expect_error('users cannot edit the catalog',
   $$update public.movies set title = 'Fake' where id = 1$$, '42501');
 
 insert into public.watched_movies (movie_id) values (1);
-select public.save_ranking(array[1]::bigint[]);
+select public.save_ranking(array[1]::bigint[], array_fill('loved'::text, array[1]));
 select pg_temp.check_equal('each user ranks their own copy of a movie',
   (select rank_position::text from public.watched_movies where movie_id = 1), '1');
 
@@ -96,7 +96,7 @@ reset role;
 reset request.jwt.claims;
 set role anon;
 select pg_temp.expect_error('signed-out users cannot save rankings',
-  'select public.save_ranking(array[1]::bigint[])', '42501');
+  'select public.save_ranking(array[1]::bigint[], array_fill(''loved''::text, array[1]))', '42501');
 select pg_temp.expect_error('signed-out users cannot read watched lists',
   'select * from public.watched_movies', '42501');
 select pg_temp.expect_error('signed-out users cannot read the catalog',

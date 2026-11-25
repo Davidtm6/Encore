@@ -17,8 +17,8 @@ set role supabase_auth_admin;
 insert into auth.users (id, raw_user_meta_data)
 values ('00000000-0000-0000-0000-00000000000d', '{"username":"demo"}');
 reset role;
-insert into public.watched_movies (user_id, movie_id, rank_position)
-select '00000000-0000-0000-0000-00000000000d', id, row_number() over (order by id)
+insert into public.watched_movies (user_id, movie_id, rank_position, tier)
+select '00000000-0000-0000-0000-00000000000d', id, row_number() over (order by id), 'loved'
 from public.movies where provider = 'sample';
 insert into public.reviews (user_id, movie_id, body)
 select '00000000-0000-0000-0000-00000000000d', id, 'Still my number one.'

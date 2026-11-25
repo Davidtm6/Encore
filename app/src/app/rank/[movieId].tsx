@@ -14,14 +14,15 @@ import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { setSavedRankingNotice } from '@/hooks/saved-ranking-notice';
 import { useRanking } from '@/hooks/use-ranking';
+import { formatScore, TIER_LABELS, TIERS, type Tier } from '@/ranking/score';
 import type { Movie } from '@/services/movie-service';
 
 export default function RankScreen() {
   const { movieId } = useLocalSearchParams<{ movieId: string }>();
   const ranking = useRanking(Number(movieId));
-  const { movie, opponent, range, position, previousPosition, total, progress, above, below } = ranking;
-  // Once an answer is given there is something to lose, so closing asks first.
-  const hasAnswers = progress.answered > 0;
+  const { movie, opponent, range, position, score, previousPosition, total, progress, above, below } = ranking;
+  // Once a tier is picked there is something to lose, so closing asks first.
+  const hasAnswers = ranking.tier !== null;
   // Set once the person has agreed to discard, so the screen can then close.
   const [discarding, setDiscarding] = useState(false);
 
@@ -48,12 +49,13 @@ export default function RankScreen() {
   }
 
   function result(title: string) {
+    const scored = score === null ? '' : ` · ${formatScore(score)}`;
     if (previousPosition === null) {
-      return total === 1 ? `${title} is your first ranked movie.` : `${title} lands at #${position}.`;
+      return total === 1 ? `${title} is your first ranked movie${scored}.` : `${title} lands at #${position}${scored}.`;
     }
     return previousPosition === position
-      ? `${title} stays at #${position}.`
-      : `${title} moves from #${previousPosition} to #${position}.`;
+      ? `${title} stays at #${position}${scored}.`
+      : `${title} moves from #${previousPosition} to #${position}${scored}.`;
   }
 
   let content;
@@ -61,6 +63,32 @@ export default function RankScreen() {
     content = <ErrorBanner message={ranking.loadError} onRetry={ranking.reload} />;
   } else if (!ranking.ready || !movie) {
     content = <ActivityIndicator accessibilityLabel="Loading your ranking" />;
+  } else if (ranking.tier === null) {
+    // Step one (#60): a broad tier first, so the comparisons only use movies in it.
+    content = (
+      <>
+        <ThemedText type="subtitle" style={styles.center} accessibilityRole="header">
+          How did you feel about {movie.title}?
+        </ThemedText>
+        <ThemedText type="small" themeColor="textSecondary" style={styles.center}>
+          {ranking.previousTier
+            ? `Last time: ${TIER_LABELS[ranking.previousTier]}. You’ll only compare it with movies you felt the same about.`
+            : 'You’ll only compare it with movies you felt the same about.'}
+        </ThemedText>
+        <View style={styles.tiers}>
+          {TIERS.map((tier: Tier) => (
+            <Button
+              key={tier}
+              label={TIER_LABELS[tier]}
+              variant={tier === ranking.previousTier ? 'primary' : 'secondary'}
+              accessibilityLabel={`${TIER_LABELS[tier]}${tier === ranking.previousTier ? ', your last answer' : ''}`}
+              onPress={() => ranking.chooseTier(tier)}
+            />
+          ))}
+        </View>
+        <Button label="Cancel" variant="plain" onPress={() => router.back()} />
+      </>
+    );
   } else if (opponent) {
     const question = progress.answered + 1;
     const most = progress.answered + progress.left;
@@ -77,6 +105,14 @@ export default function RankScreen() {
           Which did you enjoy more?
         </ThemedText>
         <ComparisonPair movie={movie} opponent={opponent} onChoose={ranking.choose} />
+        {/* #43: no forced guess when the two are too close to call. */}
+        <Button
+          label="Too close to call? Skip"
+          variant="plain"
+          size="small"
+          accessibilityLabel={`Skip, ${movie.title} and ${opponent.title} are too close to call`}
+          onPress={ranking.skip}
+        />
         {range && range.best !== range.worst && (
           <ThemedText type="small" themeColor="textSecondary" style={styles.center} accessibilityLiveRegion="polite">
             {range.best === 1 && range.worst === range.total
@@ -89,7 +125,7 @@ export default function RankScreen() {
             <Button
               label="Undo"
               variant="secondary"
-              accessibilityLabel="Undo your last answer"
+              accessibilityLabel={progress.answered > 0 ? 'Undo your last answer' : 'Back to how you felt about it'}
               onPress={ranking.back}
               disabled={!ranking.canGoBack}
             />
@@ -104,11 +140,15 @@ export default function RankScreen() {
     content = (
       <>
         {progress.answered > 0 && <ProgressBar fraction={1} label="All questions answered" />}
-        <View style={styles.result} accessible accessibilityLabel={`Number ${position} of ${total}`}>
+        <View
+          style={styles.result}
+          accessible
+          accessibilityLabel={`Number ${position} of ${total}${score === null ? '' : `, score ${formatScore(score)}`}`}>
           <PosterTile movie={movie} size="large" />
           {position !== null && <RankBadge rank={position} size="large" />}
           <ThemedText type="small" themeColor="textSecondary">
-            of {total} ranked
+            of {total} ranked{score === null ? '' : ` · score ${formatScore(score)}`}
+            {ranking.tier ? ` · ${TIER_LABELS[ranking.tier]}` : ''}
           </ThemedText>
         </View>
         <ThemedText style={styles.center}>{result(movie.title)}</ThemedText>
@@ -122,26 +162,20 @@ export default function RankScreen() {
           Not saved yet. Press Save to keep this place.
         </ThemedText>
         <Button label="Save" onPress={save} busy={ranking.saving} />
-        {(ranking.canGoBack || total > 1) && (
         <View style={styles.row}>
-          {ranking.canGoBack && (
-            <View style={styles.grow}>
-              <Button
-                label="Undo"
-                variant="secondary"
-                accessibilityLabel="Undo your last answer"
-                onPress={ranking.back}
-                disabled={ranking.saving}
-              />
-            </View>
-          )}
-          {total > 1 && (
-            <View style={styles.grow}>
-              <Button label="Start over" variant="secondary" onPress={ranking.restart} disabled={ranking.saving} />
-            </View>
-          )}
+          <View style={styles.grow}>
+            <Button
+              label="Undo"
+              variant="secondary"
+              accessibilityLabel={progress.answered > 0 ? 'Undo your last answer' : 'Back to how you felt about it'}
+              onPress={ranking.back}
+              disabled={ranking.saving}
+            />
+          </View>
+          <View style={styles.grow}>
+            <Button label="Start over" variant="secondary" onPress={ranking.restart} disabled={ranking.saving} />
+          </View>
         </View>
-        )}
         <Button label="Cancel" variant="plain" onPress={() => router.back()} disabled={ranking.saving} />
       </>
     );
@@ -179,6 +213,9 @@ function Neighbor({ label, rank, movie }: { label: string; rank: number; movie: 
 }
 
 const styles = StyleSheet.create({
+  tiers: {
+    gap: Spacing.two,
+  },
   progress: {
     gap: Spacing.two,
   },

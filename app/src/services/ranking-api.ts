@@ -1,3 +1,4 @@
+import type { Tier } from '@/ranking/score';
 import { userError } from '@/services/errors';
 import { supabase } from '@/services/supabase';
 
@@ -5,11 +6,12 @@ import { supabase } from '@/services/supabase';
 export class RankingConflictError extends Error {}
 
 /**
- * Saves the whole ranking, best first, in one transaction. It either fully
- * saves or changes nothing; see save_ranking in supabase/migrations.
+ * Saves the whole ranking, best first, with each movie's tier in the same
+ * order, in one transaction. It either fully saves or changes nothing; see
+ * save_ranking in supabase/migrations.
  */
-export async function saveRanking(order: number[]): Promise<void> {
-  const { error } = await supabase.rpc('save_ranking', { p_order: order });
+export async function saveRanking(order: number[], tiers: Tier[]): Promise<void> {
+  const { error } = await supabase.rpc('save_ranking', { p_order: order, p_tiers: tiers });
   if (!error) {
     return;
   }

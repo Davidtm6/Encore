@@ -1,3 +1,4 @@
+import { readTier, scoresForList, type Tier } from '@/ranking/score';
 import { currentUserId } from '@/services/auth-service';
 import { userError } from '@/services/errors';
 import { MOVIE_FIELDS, type Movie } from '@/services/movie-service';
@@ -7,6 +8,10 @@ export interface WatchedMovie {
   movie: Movie;
   /** 1 is the favorite; null until the movie is ranked. */
   rankPosition: number | null;
+  /** Loved it, okay, or didn't like it; null until the movie is ranked. */
+  tier: Tier | null;
+  /** 0.0–10.0 from the tier and the place within it; null until the movie is ranked. */
+  score: number | null;
   review: string | null;
 }
 
@@ -23,18 +28,24 @@ export async function listMyMovies(): Promise<WatchedMovie[]> {
 export async function listWatched(userId: string, failure: string): Promise<WatchedMovie[]> {
   const { data, error } = await supabase
     .from('watched_movies')
-    .select(`rank_position, movies(${MOVIE_FIELDS}), reviews(body)` as const)
+    .select(`rank_position, tier, movies(${MOVIE_FIELDS}), reviews(body)` as const)
     .eq('user_id', userId)
     .order('rank_position', { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: false });
   if (error) {
     throw userError(error, failure);
   }
-  return data.map((row) => ({
+  const list = data.map((row) => ({
     movie: row.movies,
     rankPosition: row.rank_position,
+    tier: row.rank_position === null ? null : readTier(row.tier),
     review: row.reviews?.body ?? null,
   }));
+  // Rows come best first, so the ranked ones are already in list order.
+  const scores = scoresForList(
+    list.flatMap(({ movie, tier }) => (tier === null ? [] : [{ id: movie.id, tier }])),
+  );
+  return list.map((item) => ({ ...item, score: scores.get(item.movie.id) ?? null }));
 }
 
 /** Adds a movie to the watched list. Returns false when it was already there. */

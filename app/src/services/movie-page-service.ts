@@ -2,7 +2,7 @@ import { currentUserId } from '@/services/auth-service';
 import { countComments } from '@/services/comment-service';
 import { userError } from '@/services/errors';
 import { getMovie, type Movie } from '@/services/movie-service';
-import { buildTakes, type MoviePageTakes, rankedUserIds, userIdsOnPage } from '@/services/movie-page';
+import { buildTakes, type MoviePageTakes, type RankedRow, rankedUserIds, userIdsOnPage } from '@/services/movie-page';
 import { supabase } from '@/services/supabase';
 
 /** Most reviews loaded for one movie, newest first. Plenty at class scale; paging can come later. */
@@ -38,29 +38,36 @@ export async function getMoviePage(movieId: number): Promise<MoviePage> {
     throw userError((reviews.error ?? watched.error)!, FAILED);
   }
 
-  const [rankedCounts, usernames] = await Promise.all([
-    countRanked(rankedUserIds(watched.data)),
+  const [rankings, usernames] = await Promise.all([
+    loadRankings(rankedUserIds(watched.data)),
     loadUsernames(userIdsOnPage(reviews.data, watched.data)),
   ]);
-  return { movie, commentCounts, ...buildTakes({ myId, reviews: reviews.data, watched: watched.data, rankedCounts, usernames }) };
+  return { movie, commentCounts, ...buildTakes({ myId, reviews: reviews.data, watched: watched.data, rankings, usernames }) };
 }
 
-/** How many films each person has ranked, for "#4 of 62". One count per person, not their whole list. */
-async function countRanked(userIds: string[]): Promise<Map<string, number>> {
-  const counts = await Promise.all(
+/**
+ * Each person's ranked films, just place and tier, for "#4 of 62 · 8.7". One
+ * query per person, so no list runs into the API's row limit for another's.
+ */
+async function loadRankings(userIds: string[]): Promise<Map<string, RankedRow[]>> {
+  const lists = await Promise.all(
     userIds.map(async (userId) => {
-      const { count, error } = await supabase
+      const { data, error } = await supabase
         .from('watched_movies')
-        .select('movie_id', { count: 'exact', head: true })
+        .select('rank_position, tier')
         .eq('user_id', userId)
-        .not('rank_position', 'is', null);
+        .not('rank_position', 'is', null)
+        .order('rank_position', { ascending: true });
       if (error) {
         throw userError(error, FAILED);
       }
-      return [userId, count ?? 0] as const;
+      const rows = data.flatMap((row) =>
+        row.rank_position === null ? [] : [{ rank_position: row.rank_position, tier: row.tier }],
+      );
+      return [userId, rows] as const;
     }),
   );
-  return new Map(counts);
+  return new Map(lists);
 }
 
 async function loadUsernames(userIds: string[]): Promise<Map<string, string>> {
