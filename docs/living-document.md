@@ -266,6 +266,7 @@ All data is stored in Supabase.
 | `watched_movies` | Which movies each user has watched |
 | `reviews` | Review text and timestamps; one per user/movie pair |
 | `follows` | Who added whom as a friend; two people are friends when each has added the other |
+| `review_comments` | Comments on reviews: the review they belong to, the author, the text, and timestamps |
 | `rankings` | A record of each saved ranking |
 
 The migrations in `supabase/migrations/` implement:
@@ -274,6 +275,7 @@ The migrations in `supabase/migrations/` implement:
 - a trigger that creates a profile at sign-up;
 - `save_ranking`, the atomic save, which rewrites a user's whole order in one statement after checking it against the saved list;
 - `reviews.visibility` (#15): `'friends'` (the default) lets the author and their friends read a review, and `'public'` lets every signed-in user read it. The author chooses per review. Reviews written before this existed became `'friends'`. `is_friend(other)` is the shared check for "the caller and `other` have each added the other";
+- `review_comments` (#41): comments on a review, readable and writable by anyone who can read that review (checked through `reviews`' own RLS), editable and deletable only by their author, and deleted with the review. Only the text can be edited;
 - `follows` (stretch goal, #39 and #40), with row-level security so people see only the adds they made or received, and a read-only policy on `watched_movies` that shows a user's list and ranking to people they're friends with. Writes to `watched_movies` stay owner-only, and the app filters its own list by user ID because RLS alone would now also return friends' rows.
 
 Genre, display name, a separate rankings table, and matchup rate limits are not in them yet.
@@ -290,11 +292,11 @@ Genre, display name, a separate rankings table, and matchup rate limits are not 
 - **The app calls Supabase directly; the Encore API is deferred (decided for the beta, #16).** The original plan sent every request through our own API. Instead, the server side is the `search-movies` Edge Function plus RLS and database functions in Postgres. This covers every MVP use case with less to host and keep running. The API comes back when the server-side ranking re-check or rate limits need it; then only `app/src/services` changes.
 - Run the ranking engine in the app for instant feedback. `save_ranking` checks that an order is complete and contains only the caller's watched movies, but doesn't replay comparisons yet; that re-check is the main reason to build the API.
 - Keep TMDB behind the Edge Function, so the TMDB key never ships in the app and search results are saved for when TMDB is unavailable.
-- **Who can read a review (#15):** each review's author chooses Friends (the default) or Everyone. Friends-only by default means nothing is shown to strangers unless its author opts in, and existing reviews were made friends-only for the same reason. Rankings stay friends-only with no public option. Anyone who can read a review will be able to comment on it (#41).
+- **Who can read a review (#15):** each review's author chooses Friends (the default) or Everyone. Friends-only by default means nothing is shown to strangers unless its author opts in, and existing reviews were made friends-only for the same reason. Rankings stay friends-only with no public option. Anyone who can read a review can comment on it, and only a comment's author can edit or delete it, so a review's author can't remove other people's comments (#41). If a public review becomes friends-only, its existing comments stay and are readable by whoever can still read the review; a commenter who can no longer read it can't add more but can still delete their own.
 
 ## 8. Software design
 
-The repository has two top-level code folders: `app/` (Expo app) and `supabase/` (database and movie search). A third, `server/` (Encore API and ranking re-check), is deferred (see 7.5). In the app, screens call hooks and hooks call services. There is one screen per use case area: sign in and sign up, my movies, search, ranking, and reviews, plus the social screens: friends, a friend's page, and a movie's page (your rank and review, friends' ranks and reviews, and public reviews, #40). Following the Expo template, app code lives under `app/src/`. Routes are in `app/src/app/`, and the folders below are `app/src/components`, `app/src/hooks`, and `app/src/services`. The ranking engine is in `app/src/ranking`.
+The repository has two top-level code folders: `app/` (Expo app) and `supabase/` (database and movie search). A third, `server/` (Encore API and ranking re-check), is deferred (see 7.5). In the app, screens call hooks and hooks call services. There is one screen per use case area: sign in and sign up, my movies, search, ranking, and reviews, plus the social screens: friends, a friend's page, and a movie's page (your rank and review, friends' ranks and reviews, and public reviews, #40), and a review's comment thread (#41). Following the Expo template, app code lives under `app/src/`. Routes are in `app/src/app/`, and the folders below are `app/src/components`, `app/src/hooks`, and `app/src/services`. The ranking engine is in `app/src/ranking`.
 
 - **Components (`app/components`):** a few shared display components (`MovieCard`, `ComparisonPair`, `RankedList`, `ErrorBanner`) that render data and collect input.
 - **Hooks (`app/hooks`):** one per screen (`useSession`, `useMovieSearch`, `useMyMovies`, `useRanking`, `useReview`). Each holds the screen's state, calls services, and handles loading, errors, and retries.

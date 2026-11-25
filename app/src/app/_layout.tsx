@@ -61,6 +61,7 @@ function RootStack() {
         <Stack.Screen name="friend/[userId]" options={{ title: 'Friend' }} />
         {/* A movie's page with your take and your friends'; the screen sets the title to the movie's. */}
         <Stack.Screen name="movie/[movieId]" options={{ title: 'Movie' }} />
+        <Stack.Screen name="comments/[movieId]/[userId]" options={{ title: 'Comments' }} />
       </Stack.Protected>
     </Stack>
   );

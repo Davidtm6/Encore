@@ -26,7 +26,7 @@ Not built yet, planned before the tester release:
 - The Encore API server (`server/`); see [Architecture](#architecture).
 - EAS builds for TestFlight and Google Play internal testing.
 
-**Friends (first stretch goal).** The Friends tab finds people by username. Two people become friends once each has added the other; until then, the add shows in the other person's "Added you" list. Tapping a friend opens their page: their ranking, best first, with their reviews, and the films they haven't ranked. Either person can remove the friendship. Only friends can see each other's rankings. Reviews are friends-only unless their author picks Everyone on the review screen (`reviews.visibility`, `supabase/migrations/20261125000000_review_visibility.sql`). Both are enforced by row-level security on `watched_movies` and `reviews` (the `follows` table and its policies are in `supabase/migrations/20261124000000_friends.sql`). Tapping a movie on My List or on a friend's page opens the movie's page: your rank and review, then each friend who has it on their list with where they ranked it ("#4 of 62") and their review, then other people's public reviews. Comments and personalized recommendations are still stretch goals.
+**Friends (first stretch goal).** The Friends tab finds people by username. Two people become friends once each has added the other; until then, the add shows in the other person's "Added you" list. Tapping a friend opens their page: their ranking, best first, with their reviews, and the films they haven't ranked. Either person can remove the friendship. Only friends can see each other's rankings. Reviews are friends-only unless their author picks Everyone on the review screen (`reviews.visibility`, `supabase/migrations/20261125000000_review_visibility.sql`). Both are enforced by row-level security on `watched_movies` and `reviews` (the `follows` table and its policies are in `supabase/migrations/20261124000000_friends.sql`). Tapping a movie on My List or on a friend's page opens the movie's page: your rank and review, then each friend who has it on their list with where they ranked it ("#4 of 62") and their review, then other people's public reviews. Each review there has a comment thread: anyone who can read a review can comment on it, and only a comment's author can edit or delete it (`review_comments`, `supabase/migrations/20261126000000_review_comments.sql`). Personalized recommendations are still a stretch goal.
 
 ## Prerequisites
 
@@ -63,7 +63,7 @@ After `npm run setup`, from the repository root:
 npm test   # every Jest test: ranking engine, search logic, error messages, starter-film consistency
 ```
 
-It needs no network, database, or accounts, and ends with `Test Suites: 1 skipped, 11 passed`. The skipped suite is the TMDB format check, which runs only when a TMDB token is set (see [Testing](docs/testing.md#the-tmdb-format-test)).
+It needs no network, database, or accounts, and ends with `Test Suites: 1 skipped, 13 passed`. The skipped suite is the TMDB format check, which runs only when a TMDB token is set (see [Testing](docs/testing.md#the-tmdb-format-test)).
 
 The other suites:
 
