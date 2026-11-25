@@ -7,9 +7,12 @@ import {
   nextOpponent,
   placeRange,
   progressFraction,
+  skip,
   startRanking,
+  tierBounds,
   type RankingSession,
 } from './ranking-session';
+import type { Tier } from './score';
 
 /** Answers every comparison as if the movie belongs at `desired`. */
 function rankAt(ranked: readonly number[], movie: number, desired: number) {
@@ -218,5 +221,140 @@ describe('re-ranking', () => {
 
     expect(isDone(session)).toBe(true);
     expect(finalOrder(session)).toEqual([10]);
+  });
+});
+
+describe('tiers (#60)', () => {
+  /** Ids 0.. best first: `loved` loved movies, then `okay`, then `disliked`. */
+  function tiered(loved: number, okay: number, disliked: number) {
+    const tiers: Tier[] = [
+      ...Array<Tier>(loved).fill('loved'),
+      ...Array<Tier>(okay).fill('okay'),
+      ...Array<Tier>(disliked).fill('disliked'),
+    ];
+    return tiers.map((tier, id) => ({ id, tier }));
+  }
+
+  it('finds the slice of the list each tier owns', () => {
+    const ranked = tiered(3, 4, 2);
+
+    expect(tierBounds(ranked, -1, 'loved')).toEqual({ low: 0, high: 3 });
+    expect(tierBounds(ranked, -1, 'okay')).toEqual({ low: 3, high: 7 });
+    expect(tierBounds(ranked, -1, 'disliked')).toEqual({ low: 7, high: 9 });
+  });
+
+  it('leaves out the movie being re-ranked, so it can change tier', () => {
+    // Movie 1 is loved; re-ranked as disliked, the list it joins has 2 loved left.
+    expect(tierBounds(tiered(3, 4, 2), 1, 'disliked')).toEqual({ low: 6, high: 8 });
+  });
+
+  it('only compares against, and only places within, the chosen tier', () => {
+    for (const [loved, okay, disliked] of [[0, 0, 0], [5, 0, 3], [4, 6, 2], [1, 1, 1], [9, 13, 7]]) {
+      const ranked = tiered(loved, okay, disliked);
+      const ids = ranked.map((m) => m.id);
+      for (const tier of ['loved', 'okay', 'disliked'] as const) {
+        const bounds = tierBounds(ranked, -1, tier);
+        for (let desired = bounds.low; desired <= bounds.high; desired++) {
+          let session: RankingSession<number> = startRanking(ids, -1, bounds);
+          const promised = comparisonsLeft(session);
+          let asked = 0;
+          for (let opponent = nextOpponent(session); opponent !== undefined; opponent = nextOpponent(session)) {
+            expect(ranked[opponent].tier).toBe(tier);
+            session = choose(session, desired <= session.others.indexOf(opponent));
+            asked++;
+          }
+
+          expect(finalOrder(session).indexOf(-1)).toBe(desired);
+          expect(asked).toBeLessThanOrEqual(promised);
+        }
+      }
+    }
+  });
+
+  it('places a movie in an empty tier with no questions, where that tier would start', () => {
+    const ranked = tiered(2, 0, 2);
+    const session = startRanking(ranked.map((m) => m.id), -1, tierBounds(ranked, -1, 'okay'));
+
+    expect(isDone(session)).toBe(true);
+    expect(finalOrder(session)).toEqual([0, 1, -1, 2, 3]);
+  });
+
+  it('rejects bounds outside the list', () => {
+    expect(() => startRanking([1, 2], 3, { low: 1, high: 3 })).toThrow('outside the list');
+    expect(() => startRanking([1, 2], 3, { low: 2, high: 1 })).toThrow('outside the list');
+  });
+});
+
+describe('skip (#43)', () => {
+  it('asks a different movie, and never the same one twice', () => {
+    for (let size = 1; size <= 40; size++) {
+      let session: RankingSession<number> = startRanking(Array.from({ length: size }, (_, i) => i), -1);
+      const asked = new Set<number>();
+      for (let opponent = nextOpponent(session); opponent !== undefined; opponent = nextOpponent(session)) {
+        expect(asked.has(opponent)).toBe(false);
+        asked.add(opponent);
+        session = skip(session);
+      }
+    }
+  });
+
+  it('lands in the middle of the range when every movie left is skipped', () => {
+    for (let size = 1; size <= 40; size++) {
+      let session: RankingSession<number> = startRanking(Array.from({ length: size }, (_, i) => i), -1);
+      while (!isDone(session)) {
+        session = skip(session);
+      }
+
+      expect(finalOrder(session).indexOf(-1)).toBe(Math.floor(size / 2));
+    }
+  });
+
+  it('after one skip and honest answers, lands exactly or right beside the skipped movie', () => {
+    for (const { ranked, desired } of everyRanking()) {
+      if (ranked.length < 2) {
+        continue;
+      }
+      const start = startRanking(ranked, -1);
+      const skippedMovie = nextOpponent(start)!;
+      let session = skip(start);
+      for (let opponent = nextOpponent(session); opponent !== undefined; opponent = nextOpponent(session)) {
+        session = choose(session, desired <= session.others.indexOf(opponent));
+      }
+
+      const order = finalOrder(session);
+      const landed = order.indexOf(-1);
+      if (landed !== desired) {
+        // Too close to call: it can only be off by the one movie it was never compared with.
+        expect(Math.abs(landed - desired)).toBe(1);
+        expect(Math.abs(order.indexOf(skippedMovie) - landed)).toBe(1);
+      }
+    }
+  });
+
+  it('keeps the progress bar moving forward when skips are mixed in', () => {
+    for (const { ranked, desired } of everyRanking()) {
+      let session: RankingSession<number> = startRanking(ranked, -1);
+      let steps = 0;
+      let fraction = progressFraction(steps, comparisonsLeft(session));
+      for (let opponent = nextOpponent(session); opponent !== undefined; opponent = nextOpponent(session)) {
+        // Skip every third step; answer the rest honestly.
+        session = steps % 3 === 2 ? skip(session) : choose(session, desired <= session.others.indexOf(opponent));
+        steps++;
+        const next = progressFraction(steps, comparisonsLeft(session));
+        expect(next).toBeGreaterThan(fraction);
+        fraction = next;
+      }
+
+      expect(fraction).toBe(1);
+    }
+  });
+
+  it('can be undone by keeping the earlier session', () => {
+    const start = startRanking(['A', 'B', 'C'], 'D');
+    const skipped = skip(start);
+
+    expect(nextOpponent(start)).toBe('B');
+    expect(nextOpponent(skipped)).toBe('C');
+    expect(start.skipped.size).toBe(0);
   });
 });

@@ -1,5 +1,5 @@
--- Gives an existing account a ready-made list for demos: 10 ranked films,
--- 3 watched but unranked, and one review. Sign up in the app first, set
+-- Gives an existing account a ready-made list for demos: 10 ranked films
+-- (4 loved, 4 okay, 2 disliked), 3 watched but unranked, and one review. Sign up in the app first, set
 -- demo_username below, then run this in the dashboard SQL editor.
 -- It replaces that account's watched list and reviews.
 
@@ -16,8 +16,9 @@ begin
   -- Reviews cascade from watched_movies.
   delete from public.watched_movies where user_id = demo_id;
 
-  insert into public.watched_movies (user_id, movie_id, rank_position)
-  select demo_id, m.id, r.position
+  insert into public.watched_movies (user_id, movie_id, rank_position, tier)
+  select demo_id, m.id, r.position,
+    case when r.position <= 4 then 'loved' when r.position <= 8 then 'okay' else 'disliked' end
   from unnest(array[
     '496243', '129', '666277', '244786', '76341',
     '419430', '313369', '27205', '545611',

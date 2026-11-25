@@ -151,7 +151,7 @@ npx supabase gen types typescript --project-id <project-ref> --schema public > a
 
 `app/src/types/database.ts` is generated; don't edit it by hand. Commit the migration and the regenerated types together.
 
-The ranking save is the `save_ranking(p_order bigint[])` database function. It checks that the new order contains every movie that was already ranked and only movies the caller has watched. It then rewrites all positions in one statement, so a save either fully succeeds or changes nothing. New accounts get a `profiles` row from the `on_auth_user_created` trigger.
+The ranking save is the `save_ranking(p_order bigint[], p_tiers text[])` database function. It checks that the new order contains every movie that was already ranked and only movies the caller has watched, and that every movie has a tier with loved movies first, then okay, then disliked. It then rewrites all positions and tiers in one statement, so a save either fully succeeds or changes nothing. New accounts get a `profiles` row from the `on_auth_user_created` trigger.
 
 ## Local Supabase (optional)
 

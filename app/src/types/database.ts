@@ -211,6 +211,7 @@ export type Database = {
           created_at: string
           movie_id: number
           rank_position: number | null
+          tier: string | null
           user_id: string
           watched_on: string | null
         }
@@ -218,6 +219,7 @@ export type Database = {
           created_at?: string
           movie_id: number
           rank_position?: number | null
+          tier?: string | null
           user_id?: string
           watched_on?: string | null
         }
@@ -225,6 +227,7 @@ export type Database = {
           created_at?: string
           movie_id?: number
           rank_position?: number | null
+          tier?: string | null
           user_id?: string
           watched_on?: string | null
         }
@@ -251,7 +254,10 @@ export type Database = {
     }
     Functions: {
       is_friend: { Args: { other: string }; Returns: boolean }
-      save_ranking: { Args: { p_order: number[] }; Returns: undefined }
+      save_ranking: {
+        Args: { p_order: number[]; p_tiers: string[] }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

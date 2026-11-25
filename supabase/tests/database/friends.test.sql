@@ -15,13 +15,13 @@ set role authenticated;
 -- Bob ranks two films and reviews one.
 set request.jwt.claims = '{"sub":"00000000-0000-0000-0000-00000000000b"}';
 insert into public.watched_movies (movie_id) values (1), (2), (3);
-select public.save_ranking(array[2, 1]::bigint[]);
+select public.save_ranking(array[2, 1]::bigint[], array_fill('loved'::text, array[2]));
 insert into public.reviews (movie_id, body) values (2, 'A favorite.');
 
 -- Alice ranks one film.
 set request.jwt.claims = '{"sub":"00000000-0000-0000-0000-00000000000a"}';
 insert into public.watched_movies (movie_id) values (4);
-select public.save_ranking(array[4]::bigint[]);
+select public.save_ranking(array[4]::bigint[], array_fill('loved'::text, array[1]));
 
 -- Alice adds Bob. He hasn't added her back, so neither sees the other's list.
 insert into public.follows (followee_id) values ('00000000-0000-0000-0000-00000000000b');
@@ -61,7 +61,7 @@ select pg_temp.expect_error('a friend cannot add films to your list',
   $$insert into public.watched_movies (user_id, movie_id) values ('00000000-0000-0000-0000-00000000000b', 5)$$, '42501');
 -- save_ranking must still treat only your own films as "the whole list", even
 -- though a friend's films are now visible to you.
-select public.save_ranking(array[4]::bigint[]);
+select public.save_ranking(array[4]::bigint[], array_fill('loved'::text, array[1]));
 select pg_temp.check_equal('save_ranking ignores a friend''s visible films',
   (select string_agg(movie_id || '@' || rank_position, ',' order by rank_position)
    from public.watched_movies where user_id = '00000000-0000-0000-0000-00000000000a'), '4@1');
