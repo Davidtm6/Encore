@@ -63,12 +63,21 @@ delete from public.review_comments;
 select pg_temp.check_equal('the review''s author cannot edit or delete others'' comments',
   (select string_agg(body, ' | ' order by id) from public.review_comments), 'Agreed! | Edited by Carol.');
 
--- Alice makes the public review friends-only: Carol's comment is hidden from
--- everyone but Carol, who can still delete it.
+-- Alice makes the public review friends-only. Carol's comment stays, readable
+-- by whoever can read the review (Alice and her friends), and Carol, who can
+-- no longer read the review, still sees her own comment and can delete it.
 update public.reviews set visibility = 'friends' where movie_id = 2;
-select pg_temp.check_equal('a stranger''s comment is hidden once the review is friends-only',
-  (select count(*)::text from public.review_comments where movie_id = 2), '0');
+select pg_temp.check_equal('the review''s author still sees comments after making it friends-only',
+  (select count(*)::text from public.review_comments where movie_id = 2), '1');
+set request.jwt.claims = '{"sub":"00000000-0000-0000-0000-00000000000b"}';
+select pg_temp.check_equal('a friend sees a stranger''s earlier comment on a now friends-only review',
+  (select count(*)::text from public.review_comments where movie_id = 2), '1');
 set request.jwt.claims = '{"sub":"00000000-0000-0000-0000-00000000000c"}';
+select pg_temp.check_equal('the stranger can no longer read the review',
+  (select count(*)::text from public.reviews), '0');
+select pg_temp.expect_error('the stranger cannot add to a review they can no longer read',
+  $$insert into public.review_comments (review_user_id, movie_id, body)
+    values ('00000000-0000-0000-0000-00000000000a', 2, 'One more')$$, '42501');
 select pg_temp.check_equal('the stranger still sees their own comment',
   (select count(*)::text from public.review_comments), '1');
 delete from public.review_comments;

@@ -4,9 +4,11 @@
 -- author can edit or delete it.
 --
 -- The read and write rules look the review up through public.reviews, whose
--- own RLS decides whether the caller may read it. So if a review becomes
--- friends-only, comments from people who aren't friends are hidden from
--- everyone but their authors, who can still delete them.
+-- own RLS decides whether the caller may read it. So if a public review
+-- becomes friends-only, its comments stay readable by whoever can still read
+-- the review (its author and their friends). Someone who commented but can
+-- no longer read the review can't add more, but still sees and can delete
+-- their own comments.
 
 create table public.review_comments (
   id bigint generated always as identity primary key,
