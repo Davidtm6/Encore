@@ -9,6 +9,7 @@ import {
   tmdbResults,
   tmdbUrl,
 } from './search.ts';
+import { personFilmsUrl, personSearchUrl } from './people.ts';
 import { POSTER_BASE_URL } from './tmdb.ts';
 
 /** Fake TMDB and database: saved rows get ids from 100, in the order saved. */
@@ -112,7 +113,8 @@ describe('searchMovies', () => {
 
     const result = await searchMovies('parasite', deps);
 
-    expect(calls.urls).toEqual([tmdbUrl('parasite')]);
+    // The person search finds no one named "parasite", so only the title results come back.
+    expect(calls.urls).toEqual([personSearchUrl('parasite'), tmdbUrl('parasite')]);
     expect(calls.saved).toEqual([['496243', '48311']]);
     // The overview tells same-titled films apart (#47); it's passed through, not saved.
     expect(result).toEqual({
@@ -160,6 +162,7 @@ describe('searchMovies', () => {
     const result = await searchMovies('intersteller', deps);
 
     expect(calls).toEqual([
+      personSearchUrl('intersteller'),
       tmdbUrl('intersteller'),
       tmdbUrl('interstelle'),
       tmdbUrl('interstell'),
@@ -180,15 +183,8 @@ describe('searchMovies', () => {
   });
 
   it('still answers with no movies when looking for near matches fails', async () => {
-    let first = true;
     const { deps, calls, logged } = fakeDeps(null, {
-      fetchTmdb: async () => {
-        if (first) {
-          first = false;
-          return tmdb();
-        }
-        return tmdb({ id: 1, title: 'Incepton' });
-      },
+      fetchTmdb: async (url) => (url === tmdbUrl('incepton') ? tmdb() : tmdb({ id: 1, title: 'Incepton' })),
       saveRows: async () => {
         throw new Error('permission denied');
       },
@@ -268,5 +264,110 @@ describe('searchMovies', () => {
     const result = await searchMovies('k', deps);
 
     expect(result.status === 200 && result.body.movies.map((m: Movie) => m.id)).toEqual([9]);
+  });
+});
+
+describe('searchMovies by a person’s name (#81)', () => {
+  const nolan = { id: 525, name: 'Christopher Nolan', known_for_department: 'Directing' };
+  const credits = {
+    cast: [],
+    crew: [
+      { id: 27205, title: 'Inception', job: 'Director', vote_count: 30000, release_date: '2010-07-15' },
+      { id: 11660, title: 'Following', job: 'Director', vote_count: 2000, release_date: '1998-09-12' },
+    ],
+  };
+
+  /** TMDB answering each kind of request; anything else finds nothing. */
+  function byUrl(answers: Record<string, unknown>) {
+    return async (url: string) => {
+      if (!(url in answers)) {
+        return tmdb();
+      }
+      const answer = answers[url];
+      if (answer instanceof Error) {
+        throw answer;
+      }
+      return answer;
+    };
+  }
+
+  it('returns a director’s films alongside the title matches', async () => {
+    const { deps, calls } = fakeDeps(null, {
+      fetchTmdb: byUrl({
+        [tmdbUrl('nolan')]: tmdb({ id: 5, title: 'Nolan' }),
+        [personSearchUrl('nolan')]: { results: [nolan] },
+        [personFilmsUrl(525)]: credits,
+      }),
+    });
+
+    const result = await searchMovies('nolan', deps);
+
+    expect(result.status).toBe(200);
+    const body = result.status === 200 ? result.body : null;
+    expect(body?.movies.map((m) => m.title)).toEqual(['Nolan']);
+    expect(body?.person?.name).toBe('Christopher Nolan');
+    expect(body?.person?.role).toBe('director');
+    expect(body?.person?.movies.map((m) => m.title)).toEqual(['Inception', 'Following']);
+    // The person's films are saved too, so they can be marked watched.
+    expect(calls.saved).toContainEqual(['27205', '11660']);
+  });
+
+  it('shows the person’s films instead of suggestions when no title matches', async () => {
+    const { deps } = fakeDeps(null, {
+      fetchTmdb: byUrl({ [personSearchUrl('nolan')]: { results: [nolan] }, [personFilmsUrl(525)]: credits }),
+    });
+
+    const result = await searchMovies('nolan', deps);
+
+    expect(result.status === 200 && result.body.suggestions).toBeUndefined();
+    expect(result.status === 200 && result.body.person?.movies).toHaveLength(2);
+  });
+
+  it('keeps the title matches when the person lookup fails', async () => {
+    const { deps, logged } = fakeDeps(null, {
+      fetchTmdb: byUrl({
+        [tmdbUrl('nolan')]: tmdb({ id: 5, title: 'Nolan' }),
+        [personSearchUrl('nolan')]: { results: [nolan] },
+        [personFilmsUrl(525)]: new Error('timeout'),
+      }),
+    });
+
+    const result = await searchMovies('nolan', deps);
+
+    expect(result).toEqual({
+      status: 200,
+      body: { movies: [{ id: 100, title: 'Nolan', release_year: null, poster_url: null, overview: null }] },
+    });
+    expect(logged).toEqual([]);
+  });
+
+  it('logs and leaves out the person’s films when saving them fails', async () => {
+    const { deps, logged } = fakeDeps(null, {
+      fetchTmdb: byUrl({
+        [tmdbUrl('nolan')]: tmdb({ id: 5, title: 'Nolan' }),
+        [personSearchUrl('nolan')]: { results: [nolan] },
+        [personFilmsUrl(525)]: credits,
+      }),
+      saveRows: async (rows) => {
+        if (rows[0].provider_movie_id === '27205') {
+          throw new Error('permission denied');
+        }
+        return rows.map((row, i) => ({ ...row, id: 100 + i }));
+      },
+    });
+
+    const result = await searchMovies('nolan', deps);
+
+    expect(result.status === 200 && result.body.person).toBeUndefined();
+    expect(result.status === 200 && result.body.movies).toHaveLength(1);
+    expect(logged).toEqual(['Saving a person’s films failed.']);
+  });
+
+  it('does not look anyone up for the popular list', async () => {
+    const { deps, calls } = fakeDeps(tmdb({ id: 1, title: 'Popular' }));
+
+    await searchMovies('', deps);
+
+    expect(calls.urls).toEqual([tmdbUrl('')]);
   });
 });

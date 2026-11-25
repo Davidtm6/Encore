@@ -3,6 +3,8 @@
  * imports and no Deno APIs, so the root Jest config can test it.
  */
 
+export const TMDB_API = 'https://api.themoviedb.org/3';
+
 /** TMDB's image server with a poster size that suits list rows and the Rank screen. */
 export const POSTER_BASE_URL = 'https://image.tmdb.org/t/p/w342';
 
