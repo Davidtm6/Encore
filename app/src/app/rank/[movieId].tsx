@@ -1,4 +1,4 @@
-import { router, Stack, useLocalSearchParams, usePreventRemove } from 'expo-router';
+import { Stack, useLocalSearchParams, usePreventRemove } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 
@@ -14,6 +14,7 @@ import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { setSavedRankingNotice } from '@/hooks/saved-ranking-notice';
 import { useRanking } from '@/hooks/use-ranking';
+import { closeScreen } from '@/navigation/close-screen';
 import { formatScore, TIER_LABELS, TIERS, type Tier } from '@/ranking/score';
 import type { Movie } from '@/services/movie-service';
 
@@ -44,7 +45,7 @@ export default function RankScreen() {
       // Saved, so there is nothing left to lose and no reason to ask.
       setDiscarding(true);
       allowClosing();
-      router.back();
+      closeScreen();
     }
   }
 
@@ -86,7 +87,7 @@ export default function RankScreen() {
             />
           ))}
         </View>
-        <Button label="Cancel" variant="plain" onPress={() => router.back()} />
+        <Button label="Cancel" variant="plain" onPress={closeScreen} />
       </>
     );
   } else if (opponent) {
@@ -131,7 +132,7 @@ export default function RankScreen() {
             />
           </View>
           <View style={styles.grow}>
-            <Button label="Cancel" variant="secondary" onPress={() => router.back()} />
+            <Button label="Cancel" variant="secondary" onPress={closeScreen} />
           </View>
         </View>
       </>
@@ -176,7 +177,7 @@ export default function RankScreen() {
             <Button label="Start over" variant="secondary" onPress={ranking.restart} disabled={ranking.saving} />
           </View>
         </View>
-        <Button label="Cancel" variant="plain" onPress={() => router.back()} disabled={ranking.saving} />
+        <Button label="Cancel" variant="plain" onPress={closeScreen} disabled={ranking.saving} />
       </>
     );
   }
