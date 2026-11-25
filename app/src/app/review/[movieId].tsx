@@ -13,6 +13,7 @@ import { ErrorBanner } from '@/components/error-banner';
 import { MovieCard } from '@/components/movie-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { VisibilityPicker } from '@/components/visibility-picker';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useReview } from '@/hooks/use-review';
 import { useTheme } from '@/hooks/use-theme';
@@ -59,6 +60,7 @@ export default function ReviewScreen() {
                 style={styles.count}>
                 {length.toLocaleString()} / {REVIEW_MAX_LENGTH.toLocaleString()}
               </ThemedText>
+              <VisibilityPicker value={review.visibility} onChange={review.setVisibility} disabled={review.saving} />
               <Button label="Save review" onPress={save} busy={review.saving} />
               <Button label="Cancel" variant="plain" onPress={() => router.back()} disabled={review.saving} />
             </>

@@ -72,8 +72,8 @@ set request.jwt.claims = '{"sub":"00000000-0000-0000-0000-00000000000b"}';
 
 select pg_temp.check_equal('another user cannot see your watched list',
   (select count(*)::text from public.watched_movies), '0');
-select pg_temp.check_equal('signed-in users can read reviews (open question: friends only?)',
-  (select count(*)::text from public.reviews), '1');
+select pg_temp.check_equal('a friends-only review is hidden from someone who isn''t a friend (#15)',
+  (select count(*)::text from public.reviews), '0');
 select pg_temp.expect_error('another user cannot rank your movies',
   'select public.save_ranking(array[1]::bigint[])', '22023');
 select pg_temp.expect_error('another user cannot add rows to your list',

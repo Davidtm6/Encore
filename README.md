@@ -16,7 +16,7 @@ The MVP is four features: accounts, finding and logging movies, ranking and re-r
 | **UC2:** Find and log a movie | Operational | Search TMDB by title (with posters and a line of plot to tell similar films apart) or browse popular films, then mark one watched. A misspelled title gets "Did you mean" suggestions. Undo it right away, or remove a movie from My List later. If TMDB is down, search falls back to films already saved. | App → Supabase Auth (login token) → `search-movies` Edge Function → TMDB → Postgres (saves the results); then App → Postgres (`watched_movies`, RLS) |
 | **UC3:** Rank a watched movie | Operational | Pick between two films until the new one has a place; the first film goes straight to #1. The screen counts the questions, Undo takes back the last answer, and the result shows the films above and below before you save. Leaving without saving asks first, whichever way you leave, and leaves the list unchanged. The whole order saves atomically. | App (ranking engine) → Postgres (`save_ranking` function, RLS) |
 | **UC4:** Re-rank a movie | Operational | Re-rank any ranked film through the same comparisons; other films keep their order. If the list changed elsewhere, the app starts over instead of saving a stale order. | App (ranking engine) → Postgres (`save_ranking` function, RLS) |
-| **UC5:** Write or edit a review | Operational | Write, then edit, one review per watched film, up to 10,000 characters. A failed save keeps the text for a retry. | App → Postgres (`reviews`, RLS: one per user and film, only the author can change it) |
+| **UC5:** Write or edit a review | Operational | Write, then edit, one review per watched film, up to 10,000 characters, and choose who can read it: Friends (the default) or Everyone. A failed save keeps the text for a retry. | App → Postgres (`reviews`, RLS: one per user and film, only the author can change it, and readable by the author, their friends, or everyone, as the author chose) |
 
 **UC2 touches every major component:** the app, Supabase Auth, the `search-movies` Edge Function, TMDB, and the Postgres database (see [Architecture](#architecture)).
 
@@ -26,7 +26,7 @@ Not built yet, planned before the tester release:
 - The Encore API server (`server/`); see [Architecture](#architecture).
 - EAS builds for TestFlight and Google Play internal testing.
 
-**Friends (first stretch goal).** The Friends tab finds people by username. Two people become friends once each has added the other; until then, the add shows in the other person's "Added you" list. Tapping a friend opens their page: their ranking, best first, with their reviews, and the films they haven't ranked. Either person can remove the friendship. Only friends can see each other's rankings; that is enforced by row-level security on `watched_movies` (the `follows` table and its policies are in `supabase/migrations/20261124000000_friends.sql`). Friends' ranks and reviews on a movie's own page, comments, and personalized recommendations are still stretch goals.
+**Friends (first stretch goal).** The Friends tab finds people by username. Two people become friends once each has added the other; until then, the add shows in the other person's "Added you" list. Tapping a friend opens their page: their ranking, best first, with their reviews, and the films they haven't ranked. Either person can remove the friendship. Only friends can see each other's rankings. Reviews are friends-only unless their author picks Everyone on the review screen (`reviews.visibility`, `supabase/migrations/20261125000000_review_visibility.sql`). Both are enforced by row-level security on `watched_movies` and `reviews` (the `follows` table and its policies are in `supabase/migrations/20261124000000_friends.sql`). Friends' ranks and reviews on a movie's own page, comments, and personalized recommendations are still stretch goals.
 
 ## Prerequisites
 
@@ -63,7 +63,7 @@ After `npm run setup`, from the repository root:
 npm test   # every Jest test: ranking engine, search logic, error messages, starter-film consistency
 ```
 
-It needs no network, database, or accounts, and ends with `Test Suites: 1 skipped, 9 passed`. The skipped suite is the TMDB format check, which runs only when a TMDB token is set (see [Testing](docs/testing.md#the-tmdb-format-test)).
+It needs no network, database, or accounts, and ends with `Test Suites: 1 skipped, 11 passed`. The skipped suite is the TMDB format check, which runs only when a TMDB token is set (see [Testing](docs/testing.md#the-tmdb-format-test)).
 
 The other suites:
 

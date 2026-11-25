@@ -95,6 +95,7 @@ export type Database = {
           movie_id: number;
           updated_at: string;
           user_id: string;
+          visibility: string;
         };
         ComputedFields: never;
         Insert: {
@@ -103,6 +104,7 @@ export type Database = {
           movie_id: number;
           updated_at?: string;
           user_id?: string;
+          visibility?: string;
         };
         Update: {
           body?: string;
@@ -110,6 +112,7 @@ export type Database = {
           movie_id?: number;
           updated_at?: string;
           user_id?: string;
+          visibility?: string;
         };
         Relationships: [
           {
@@ -166,6 +169,7 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      is_friend: { Args: { other: string }; Returns: boolean };
       save_ranking: { Args: { p_order: number[] }; Returns: undefined };
     };
     Enums: {

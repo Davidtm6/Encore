@@ -4,6 +4,7 @@ import { useSession } from '@/hooks/use-session';
 import { messageOf } from '@/services/errors';
 import { getMovie, type Movie } from '@/services/movie-service';
 import { getMyReview, saveReview, validateReview } from '@/services/review-service';
+import { DEFAULT_VISIBILITY, type ReviewVisibility } from '@/services/review-visibility';
 
 /** Loads and saves the signed-in user's one review of `movieId`. */
 export function useReview(movieId: number) {
@@ -11,6 +12,7 @@ export function useReview(movieId: number) {
   const userId = session?.user.id;
   const [movie, setMovie] = useState<Movie | null>(null);
   const [body, setBody] = useState('');
+  const [visibility, setVisibility] = useState<ReviewVisibility>(DEFAULT_VISIBILITY);
   const [exists, setExists] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +30,8 @@ export function useReview(movieId: number) {
           return;
         }
         setMovie(found);
-        setBody(review ?? '');
+        setBody(review?.body ?? '');
+        setVisibility(review?.visibility ?? DEFAULT_VISIBILITY);
         setExists(review !== null);
         setLoaded(true);
         setError(null);
@@ -50,7 +53,7 @@ export function useReview(movieId: number) {
     setSaving(true);
     setError(null);
     try {
-      await saveReview(userId, movieId, body);
+      await saveReview(userId, movieId, body, visibility);
       return true;
     } catch (e) {
       setError(messageOf(e));
@@ -60,5 +63,17 @@ export function useReview(movieId: number) {
     }
   }
 
-  return { movie, body, setBody, exists, loaded, error, saving, save, reload: () => setAttempt((n) => n + 1) };
+  return {
+    movie,
+    body,
+    setBody,
+    visibility,
+    setVisibility,
+    exists,
+    loaded,
+    error,
+    saving,
+    save,
+    reload: () => setAttempt((n) => n + 1),
+  };
 }
