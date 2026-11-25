@@ -265,13 +265,15 @@ All data is stored in Supabase.
 | `movies` | Title, year, director, genre, provider link, and poster |
 | `watched_movies` | Which movies each user has watched |
 | `reviews` | Review text and timestamps; one per user/movie pair |
+| `follows` | Who added whom as a friend; two people are friends when each has added the other |
 | `rankings` | A record of each saved ranking |
 
 The migrations in `supabase/migrations/` implement:
 - the tables `profiles`, `movies`, `watched_movies` (which also holds each movie's rank position), and `reviews`;
 - `movies.director`, filled in from TMDB's credits by the `search-movies` function for films on someone's list, and `null` until then or when TMDB has none (see [movie search](movie-search.md#directors));
 - a trigger that creates a profile at sign-up;
-- `save_ranking`, the atomic save, which rewrites a user's whole order in one statement after checking it against the saved list.
+- `save_ranking`, the atomic save, which rewrites a user's whole order in one statement after checking it against the saved list;
+- `follows` (stretch goal, #39 and #40), with row-level security so people see only the adds they made or received, and a read-only policy on `watched_movies` that shows a user's list and ranking to people they're friends with. Writes to `watched_movies` stay owner-only, and the app filters its own list by user ID because RLS alone would now also return friends' rows.
 
 Genre, display name, a separate rankings table, and matchup rate limits are not in them yet.
 
@@ -321,7 +323,7 @@ These are places where the team document disagrees with itself or leaves a choic
 - **Web leftovers.** The team document's accessibility requirement (section 4) still asks for keyboard use with visible focus. This file rewrites it for mobile (VoiceOver and TalkBack). The revised pitch's technical approach (section 2) also still says a React frontend deployed on Vercel with the IMDb API, which contradicts the Expo app and TMDB in the same section. This file keeps Expo and TMDB.
 - **Where decisions live.** Section 1 says decisions go in a shared Word doc; section 6 says Google Docs.
 - **iOS-only wording.** The team document says iOS throughout (TestFlight, VoiceOver, iOS Simulator). This file says iOS and Android, since Expo builds both; the team document should be updated to match, and the team needs a Google Play developer account and an Android test device.
-- **Public versus friends-only reviews.** The draft migration lets any signed-in user read reviews; decide before the social stretch goals.
+- **Public versus friends-only reviews.** The draft migration lets any signed-in user read reviews. The friends feature leaves that as is and only limits watched lists and rankings to friends; decide whether reviews should become friends-only too (#15).
 - **Use-case owners.** Section 3's owners don't match the schedule or the roles:
   - UC2 (find a movie) lists Pavan, but Lucas owns search and builds UC2 in week 2.
   - UC3 (rank) lists Lucas, but Pavan owns ranking and builds UC3 in week 3.

@@ -26,7 +26,7 @@ Not built yet, planned before the tester release:
 - The Encore API server (`server/`); see [Architecture](#architecture).
 - EAS builds for TestFlight and Google Play internal testing.
 
-Friendships with shared reviews and comments, and personalized recommendations, are stretch goals that start only after the MVP passes its tests.
+**Friends (first stretch goal).** The Friends tab finds people by username. Two people become friends once each has added the other; until then, the add shows in the other person's "Added you" list. Tapping a friend opens their page: their ranking, best first, with their reviews, and the films they haven't ranked. Either person can remove the friendship. Only friends can see each other's rankings; that is enforced by row-level security on `watched_movies` (the `follows` table and its policies are in `supabase/migrations/20261124000000_friends.sql`). Friends' ranks and reviews on a movie's own page, comments, and personalized recommendations are still stretch goals.
 
 ## Prerequisites
 
@@ -63,7 +63,7 @@ After `npm run setup`, from the repository root:
 npm test   # every Jest test: ranking engine, search logic, error messages, starter-film consistency
 ```
 
-It needs no network, database, or accounts, and ends with `Test Suites: 6 passed`.
+It needs no network, database, or accounts, and ends with `Test Suites: 1 skipped, 9 passed`. The skipped suite is the TMDB format check, which runs only when a TMDB token is set (see [Testing](docs/testing.md#the-tmdb-format-test)).
 
 The other suites:
 
@@ -105,7 +105,7 @@ For a longer list to rank against, [Prepare a demo account](docs/setup.md#4-prep
 | Auth | Supabase Auth | Sign up, sign in, and the login tokens every other call carries. |
 | Movie search | Supabase Edge Function `search-movies` (Deno, TypeScript) | Checks the login token, queries TMDB, saves the results to `movies`, and falls back to saved films if TMDB fails. |
 | Movie data | TMDB | Titles, years, and posters. Only the Edge Function calls it. |
-| Database | Supabase Postgres | Profiles, movies, watched lists with rank positions, and reviews. Row-level security on every table and the `save_ranking` function enforce that people can only change their own data. |
+| Database | Supabase Postgres | Profiles, movies, watched lists with rank positions, reviews, and friend adds (`follows`). Row-level security on every table and the `save_ranking` function enforce that people can only change their own data, and that only friends can read each other's watched lists. |
 | CI | GitHub Actions | Build, Jest, database tests, a TMDB format check, and the Python prototype on every pull request. |
 
 The app calls Supabase directly with the publishable key, so the security boundary is the database's access rules, not app code. A separate Encore API server (`server/`, Node.js) is deferred until the server-side ranking re-check and rate limits need it; when it arrives, only `app/src/services/` changes. The [living document](docs/living-document.md#7-software-architecture) has the diagram and the reasons.
