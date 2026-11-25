@@ -39,7 +39,11 @@ export default function CommentsScreen() {
     <ThemedView style={styles.fill}>
       <Stack.Screen options={{ title: 'Comments' }} />
       <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        {/* iOS 26 draws this pushed screen under its glass header; "automatic" insets the content below it. */}
+        <ScrollView
+          contentInsetAdjustmentBehavior="automatic"
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled">
           {thread.loading && <ActivityIndicator style={styles.loading} accessibilityLabel="Loading comments" />}
           {thread.review && (
             <>
