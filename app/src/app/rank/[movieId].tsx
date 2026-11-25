@@ -151,7 +151,8 @@ export default function RankScreen() {
           headerBackButtonDisplayMode: 'minimal',
         }}
       />
-      <ScrollView contentContainerStyle={styles.content}>
+      {/* iOS 26 draws content under the glass header; "automatic" insets it below (#74). */}
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
         {ranking.saveError && <ErrorBanner message={ranking.saveError} />}
         {content}
       </ScrollView>
