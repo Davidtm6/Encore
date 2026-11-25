@@ -21,6 +21,27 @@ import { removeWatched, type WatchedMovie } from '@/services/watched-service';
 /** How long a just-ranked movie stays highlighted. */
 const HIGHLIGHT_MS = 3000;
 
+/**
+ * Sign out sits next to About and is easy to tap by accident (#69), so it asks
+ * first, like removing a movie does.
+ */
+async function confirmSignOut() {
+  const confirmed = await confirmAction(
+    'Sign out?',
+    'You’ll need your email and password to sign back in.',
+    'Sign out',
+    'Cancel',
+  );
+  if (!confirmed) {
+    return;
+  }
+  try {
+    await signOut();
+  } catch (e) {
+    Alert.alert('Couldn’t sign out', messageOf(e));
+  }
+}
+
 export default function MyListScreen() {
   const theme = useTheme();
   const { ranked, unranked, loading, error, refreshing, refresh, reload } = useMyMovies();
@@ -94,7 +115,7 @@ export default function MyListScreen() {
               label="Sign out"
               variant="plain"
               size="small"
-              onPress={() => signOut().catch((e) => Alert.alert('Couldn’t sign out', messageOf(e)))}
+              onPress={confirmSignOut}
             />
           </View>
         </View>
