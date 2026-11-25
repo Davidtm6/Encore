@@ -63,7 +63,7 @@ After `npm run setup`, from the repository root:
 npm test   # every Jest test: ranking engine, search logic, error messages, starter-film consistency
 ```
 
-It needs no network, database, or accounts, and ends with `Test Suites: 1 skipped, 13 passed`. The skipped suite is the TMDB format check, which runs only when a TMDB token is set (see [Testing](docs/testing.md#the-tmdb-format-test)).
+It needs no network, database, or accounts. Every suite should pass, with exactly one skipped: the TMDB format check, which runs only when a TMDB token is set (see [Testing](docs/testing.md#the-tmdb-format-test)). The last lines look like `Test Suites: 1 skipped, N passed` and `Tests: 2 skipped, N passed`; the counts grow as tests are added.
 
 The other suites:
 
@@ -90,7 +90,7 @@ Then open the app:
 - **Android:** scan the QR code from inside Expo Go.
 - **Simulator or emulator:** press `i` (iOS Simulator) or `a` (Android emulator) in the terminal.
 
-`app/.env.development` already points at the team's Supabase project, so there is nothing to configure. On a home network, `npm run start:lan` reloads faster than the tunnel.
+`app/.env.development` already points at the team's Supabase project, so there is nothing to configure. On a home network, `npm run start:lan` reloads faster than the tunnel. If the tunnel asks you to log in to Expo, or LAN mode can't connect, see [Troubleshooting](docs/setup.md#3-start-the-app).
 
 To try it, sign up with any email address and a username; you're signed in right away, since email verification is off on the development project. If you forget your password, **Forgot password?** on the sign-in screen emails you a code. Until the project has its own email server, codes only reach members of the team's Supabase organization (see [Password reset emails](docs/setup.md#password-reset-emails)); anyone else can sign up again with a different email. Then follow the use cases above: search for a film, mark it watched, rank it, rank a second one, and write a review.
 
