@@ -7,6 +7,8 @@ import {
   isDone,
   neighbors,
   nextOpponent,
+  placeRange,
+  progressFraction,
   startRanking,
   type RankingSession,
 } from '@/ranking/ranking-session';
@@ -55,6 +57,7 @@ export function useRanking(movieId: number) {
 
   const opponentId = session ? nextOpponent(session) : undefined;
   const done = session !== null && isDone(session);
+  const left = session ? comparisonsLeft(session) : 0;
   const previousIndex = ranked.indexOf(movieId);
   const answered = Math.max(steps.length - 1, 0);
   const around = session && done ? neighbors(session) : {};
@@ -89,13 +92,13 @@ export function useRanking(movieId: number) {
     opponent: opponentId === undefined ? undefined : movies.get(opponentId),
     ready: session !== null,
     done,
-    /** Best and worst places the movie can still land, counting from 1. */
-    range: session ? { best: session.low + 1, worst: session.high + 1 } : null,
+    /** Best and worst places the movie can still land, counting from 1, and the list's length. */
+    range: session ? placeRange(session) : null,
     position,
     previousPosition: previousIndex === -1 ? null : previousIndex + 1,
     total: session ? session.others.length + 1 : 0,
     /** How many comparisons have been answered, and the most still to come. */
-    progress: { answered, left: session ? comparisonsLeft(session) : 0 },
+    progress: { answered, left, fraction: progressFraction(answered, left) },
     /** The films directly above and below the new place, with their new positions. */
     above: around.above === undefined || position === null ? undefined : { movie: movies.get(around.above), rank: position - 1 },
     below: around.below === undefined || position === null ? undefined : { movie: movies.get(around.below), rank: position + 1 },
