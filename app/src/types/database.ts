@@ -88,6 +88,52 @@ export type Database = {
         };
         Relationships: [];
       };
+      review_comments: {
+        Row: {
+          author_id: string;
+          body: string;
+          created_at: string;
+          id: number;
+          movie_id: number;
+          review_user_id: string;
+          updated_at: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          author_id?: string;
+          body: string;
+          created_at?: string;
+          id?: never;
+          movie_id: number;
+          review_user_id: string;
+          updated_at?: string;
+        };
+        Update: {
+          author_id?: string;
+          body?: string;
+          created_at?: string;
+          id?: never;
+          movie_id?: number;
+          review_user_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'review_comments_author_id_fkey';
+            columns: ['author_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'review_comments_review_user_id_movie_id_fkey';
+            columns: ['review_user_id', 'movie_id'];
+            isOneToOne: false;
+            referencedRelation: 'reviews';
+            referencedColumns: ['user_id', 'movie_id'];
+          },
+        ];
+      };
       reviews: {
         Row: {
           body: string;

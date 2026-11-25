@@ -11,6 +11,7 @@ import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useMoviePage } from '@/hooks/use-movie-page';
 import { useTheme } from '@/hooks/use-theme';
+import { commentsLabel } from '@/services/comments';
 import { placementLabel, spokenPlacement, type Take } from '@/services/movie-page';
 
 /**
@@ -21,6 +22,7 @@ export default function MovieScreen() {
   const { movieId } = useLocalSearchParams<{ movieId: string }>();
   const { page, loading, error, refreshing, refresh, reload } = useMoviePage(Number(movieId));
   const params = { movieId: String(movieId) };
+  const countFor = (take: Take) => page?.commentCounts.get(take.userId) ?? 0;
 
   return (
     <ThemedView style={styles.fill}>
@@ -43,7 +45,7 @@ export default function MovieScreen() {
                       : 'On your list, not ranked yet'}
                   </ThemedText>
                   {page.mine.review ? (
-                    <ReviewText take={page.mine} showVisibility />
+                    <ReviewText take={page.mine} showVisibility commentCount={countFor(page.mine)} />
                   ) : (
                     <ThemedText type="small" themeColor="textSecondary">
                       You haven’t reviewed it.
@@ -81,7 +83,7 @@ export default function MovieScreen() {
                 page.friends.map((take, i) => (
                   <View key={take.userId}>
                     {i > 0 && <ListSeparator />}
-                    <TakeRow take={take} />
+                    <TakeRow take={take} commentCount={countFor(take)} />
                   </View>
                 ))
               )}
@@ -92,7 +94,7 @@ export default function MovieScreen() {
                 {page.others.map((take, i) => (
                   <View key={take.userId}>
                     {i > 0 && <ListSeparator />}
-                    <TakeRow take={take} />
+                    <TakeRow take={take} commentCount={countFor(take)} />
                   </View>
                 ))}
               </Section>
@@ -115,25 +117,22 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-/** Someone else's take: their name (opens their page), where they ranked it if they're a friend, and their review. */
-function TakeRow({ take }: { take: Take }) {
+/**
+ * Someone else's take: their name (opens their page), where they ranked it if
+ * they're a friend, and their review with its comments.
+ */
+function TakeRow({ take, commentCount }: { take: Take; commentCount: number }) {
   const theme = useTheme();
-  const spoken = [
-    take.username,
-    take.placement ? spokenPlacement(take.placement) : null,
-    take.review ? `review: ${take.review.body}` : 'no review',
-  ]
-    .filter(Boolean)
-    .join(', ');
+  const spoken = [take.username, take.placement ? spokenPlacement(take.placement) : null].filter(Boolean).join(', ');
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={spoken}
-      accessibilityHint={`Opens ${take.username}’s page`}
-      onPress={() => router.push({ pathname: '/friend/[userId]', params: { userId: take.userId } })}
-      style={({ pressed }) => [styles.take, { opacity: pressed ? 0.7 : 1 }]}>
-      <View style={styles.takeHeader}>
+    <View style={styles.take}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={spoken}
+        accessibilityHint={`Opens ${take.username}’s page`}
+        onPress={() => router.push({ pathname: '/friend/[userId]', params: { userId: take.userId } })}
+        style={({ pressed }) => [styles.takeHeader, { opacity: pressed ? 0.7 : 1 }]}>
         <ThemedText type="smallBold" style={{ color: theme.accentText }}>
           {take.username}
         </ThemedText>
@@ -142,30 +141,52 @@ function TakeRow({ take }: { take: Take }) {
             {placementLabel(take.placement)}
           </ThemedText>
         )}
-      </View>
+      </Pressable>
       {take.review ? (
-        <ReviewText take={take} />
+        <ReviewText take={take} commentCount={commentCount} />
       ) : (
         <ThemedText type="small" themeColor="textSecondary">
           {take.placement ? 'Ranked it, no review.' : 'Watched it, no review yet.'}
         </ThemedText>
       )}
-    </Pressable>
+    </View>
   );
 }
 
-function ReviewText({ take, showVisibility = false }: { take: Take; showVisibility?: boolean }) {
+type ReviewTextProps = {
+  take: Take;
+  commentCount: number;
+  /** Says who can read it; shown on your own review. */
+  showVisibility?: boolean;
+};
+
+/** A review, with a button that opens its comments (#41). */
+function ReviewText({ take, commentCount, showVisibility = false }: ReviewTextProps) {
+  const { movieId } = useLocalSearchParams<{ movieId: string }>();
   if (!take.review) {
     return null;
   }
   return (
     <View style={styles.review}>
-      <ThemedText style={styles.reviewBody}>“{take.review.body}”</ThemedText>
+      <ThemedText style={styles.reviewBody} accessibilityLabel={`${take.username}’s review: ${take.review.body}`}>
+        “{take.review.body}”
+      </ThemedText>
       {showVisibility && (
         <ThemedText type="small" themeColor="textSecondary">
           {take.review.visibility === 'public' ? 'Everyone can read this.' : 'Only your friends can read this.'}
         </ThemedText>
       )}
+      <View style={styles.commentsButton}>
+        <Button
+          size="small"
+          variant="plain"
+          label={commentsLabel(commentCount)}
+          accessibilityLabel={`${commentsLabel(commentCount)} on ${take.username}’s review`}
+          onPress={() =>
+            router.push({ pathname: '/comments/[movieId]/[userId]', params: { movieId, userId: take.userId } })
+          }
+        />
+      </View>
     </View>
   );
 }
@@ -213,5 +234,9 @@ const styles = StyleSheet.create({
   },
   reviewBody: {
     fontStyle: 'italic',
+  },
+  commentsButton: {
+    alignItems: 'flex-start',
+    marginLeft: -Spacing.three,
   },
 });
