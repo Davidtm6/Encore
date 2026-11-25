@@ -6,7 +6,7 @@ import { searchMovies, type SearchOutcome } from '@/services/movie-service';
 // Each search calls TMDB, so wait for a short pause in typing.
 const DEBOUNCE_MS = 400;
 
-const NOTHING: SearchOutcome = { movies: [], suggestions: [], fromSaved: false };
+const NOTHING: SearchOutcome = { movies: [], suggestions: [], fromSaved: false, person: null };
 
 export function useMovieSearch() {
   const [query, setQuery] = useState('');
@@ -52,6 +52,8 @@ export function useMovieSearch() {
     suggestions: found.outcome.suggestions,
     /** True when live search was unavailable and `results` is only films already saved. */
     fromSaved: found.outcome.fromSaved,
+    /** When the query names an actor or director, their films, listed after `results`. */
+    person: found.outcome.person,
     /** The search that `results` and `suggestions` answer, which trails `query` while loading. */
     searchedQuery: found.query,
     // Loading starts with the first keystroke, not after the typing pause.

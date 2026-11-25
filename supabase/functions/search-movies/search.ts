@@ -3,10 +3,11 @@
  * index.ts passes in the real TMDB and database calls.
  */
 
-import { type MovieRow, shortOverview, type TmdbMovie, toMovieRows } from './tmdb.ts';
+import { matchingPerson, type PersonRole, personFilms, personFilmsUrl, personSearchUrl } from './people.ts';
+import { type MovieRow, shortOverview, TMDB_API, type TmdbMovie, toMovieRows } from './tmdb.ts';
 import { closestTitles, looserQueries } from './typo.ts';
 
-export const TMDB_API = 'https://api.themoviedb.org/3';
+export { TMDB_API };
 export const MAX_QUERY_LENGTH = 100;
 export const SEARCH_UNAVAILABLE = 'Search isn’t available right now. Try again.';
 
@@ -57,6 +58,19 @@ export interface SearchBody {
    * a short result list isn't a mystery.
    */
   fromSaved?: true;
+  /**
+   * When the query is a person's name, the films they acted in or directed,
+   * best known first (#81). The app lists them under the title matches. Left
+   * out when the query isn't a name or the lookup fails.
+   */
+  person?: PersonFilms;
+}
+
+/** A person's films, shown as "Films with …" (an actor) or "Films by …" (a director). */
+export interface PersonFilms {
+  name: string;
+  role: PersonRole;
+  movies: Movie[];
 }
 
 export type SearchResult =
@@ -121,14 +135,26 @@ async function suggestMovies(query: string, deps: SearchDeps): Promise<Movie[]> 
  * If TMDB or saving fails, falls back to movies already saved.
  */
 export async function searchMovies(query: string, deps: SearchDeps): Promise<SearchResult> {
+  // Asked at the same time as the title search, so a name costs no extra wait.
+  const person = query ? lookUpPerson(query, deps) : Promise.resolve(null);
   try {
     const results = tmdbResults(await deps.fetchTmdb(tmdbUrl(query)));
     const rows = toMovieRows(results);
-    if (rows.length === 0) {
-      const suggestions = query ? await suggestMovies(query, deps) : [];
-      return { status: 200, body: suggestions.length > 0 ? { movies: [], suggestions } : { movies: [] } };
+    const [movies, films] = await Promise.all([
+      rows.length === 0 ? [] : saveInOrder(rows, results, deps),
+      person,
+    ]);
+    const body: SearchBody = { movies };
+    if (films) {
+      body.person = films;
     }
-    return { status: 200, body: { movies: await saveInOrder(rows, results, deps) } };
+    if (movies.length === 0 && !films && query) {
+      const suggestions = await suggestMovies(query, deps);
+      if (suggestions.length > 0) {
+        body.suggestions = suggestions;
+      }
+    }
+    return { status: 200, body };
   } catch (error) {
     deps.logError('TMDB search failed; searching saved movies instead.', error);
   }
@@ -137,5 +163,33 @@ export async function searchMovies(query: string, deps: SearchDeps): Promise<Sea
   } catch (error) {
     deps.logError('Searching saved movies failed.', error);
     return { status: 502, body: { error: SEARCH_UNAVAILABLE } };
+  }
+}
+
+/**
+ * The films of the person the query names, saved so they can be marked
+ * watched (#81). Two TMDB calls: the person search, then their credits. Null
+ * when the query doesn't name an actor or director, or when anything fails;
+ * the title search is unaffected either way. A TMDB failure isn't logged here,
+ * since the title search reports it.
+ */
+async function lookUpPerson(query: string, deps: SearchDeps): Promise<PersonFilms | null> {
+  let person;
+  let results;
+  try {
+    person = matchingPerson(query, await deps.fetchTmdb(personSearchUrl(query)));
+    results = person ? personFilms(person.role, await deps.fetchTmdb(personFilmsUrl(person.id))) : [];
+  } catch {
+    return null;
+  }
+  const rows = toMovieRows(results);
+  if (!person || rows.length === 0) {
+    return null;
+  }
+  try {
+    return { name: person.name, role: person.role, movies: await saveInOrder(rows, results, deps) };
+  } catch (error) {
+    deps.logError('Saving a person’s films failed.', error);
+    return null;
   }
 }

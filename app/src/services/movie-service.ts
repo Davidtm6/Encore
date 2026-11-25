@@ -27,24 +27,40 @@ export interface SearchOutcome {
   suggestions: SearchResult[];
   /** True when TMDB couldn't be used, so `movies` is only films already saved, without plot lines. */
   fromSaved: boolean;
+  /** When the query is an actor's or director's name, their films, best known first (#81). */
+  person: PersonFilms | null;
+}
+
+/** A person's films: "Films with …" for an actor, "Films by …" for a director. */
+export interface PersonFilms {
+  name: string;
+  role: 'actor' | 'director';
+  movies: SearchResult[];
 }
 
 /**
  * Searches TMDB through the search-movies Edge Function, which saves the results
- * so they can be marked watched. An empty query returns TMDB's popular movies.
+ * so they can be marked watched. An empty query returns TMDB's popular movies,
+ * and a person's name also returns their films.
  */
 export async function searchMovies(query: string): Promise<SearchOutcome> {
   const { data, error } = await supabase.functions.invoke<{
     movies: SearchResult[];
     suggestions?: SearchResult[];
     fromSaved?: boolean;
+    person?: PersonFilms;
   }>('search-movies', {
     body: { query: query.trim() },
   });
   if (error) {
     throw new Error(await searchErrorMessage(error));
   }
-  return { movies: data?.movies ?? [], suggestions: data?.suggestions ?? [], fromSaved: data?.fromSaved === true };
+  return {
+    movies: data?.movies ?? [],
+    suggestions: data?.suggestions ?? [],
+    fromSaved: data?.fromSaved === true,
+    person: data?.person?.movies?.length ? data.person : null,
+  };
 }
 
 /**
