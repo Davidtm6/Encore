@@ -45,6 +45,26 @@ export function comparisonsLeft<T>(session: RankingSession<T>): number {
   return isDone(session) ? 0 : Math.ceil(Math.log2(session.high - session.low + 1));
 }
 
+/**
+ * How far through the comparisons the person is, from 0 to 1, for the Rank
+ * screen's progress bar (#62). `left` is an upper bound, and each answer uses
+ * up at least one of it, so the fraction only grows. It reaches 1 when no
+ * comparisons are left, which can be one question earlier than first shown.
+ */
+export function progressFraction(answered: number, left: number): number {
+  const total = answered + left;
+  return total === 0 ? 1 : answered / total;
+}
+
+/**
+ * The best and worst places the movie can still take, counting from 1, and
+ * the length of the list it is joining (#63). Each answer narrows the range,
+ * and it always contains the place the movie ends up in.
+ */
+export function placeRange<T>(session: RankingSession<T>): { best: number; worst: number; total: number } {
+  return { best: session.low + 1, worst: session.high + 1, total: session.others.length + 1 };
+}
+
 /** The movies just above and below the movie's new place, once it is known. */
 export function neighbors<T>(session: RankingSession<T>): { above?: T; below?: T } {
   if (!isDone(session)) {

@@ -5,6 +5,8 @@ import {
   isDone,
   neighbors,
   nextOpponent,
+  placeRange,
+  progressFraction,
   startRanking,
   type RankingSession,
 } from './ranking-session';
@@ -100,6 +102,75 @@ describe('progress (#51)', () => {
     expect(nextOpponent(wrong)).toBe('C');
     expect(nextOpponent(start)).toBe('B');
     expect(finalOrder(choose(choose(start, true), true))).toEqual(['D', 'A', 'B', 'C']);
+  });
+});
+
+/** Every ranking of a new movie into lists of 0–64 films, answered as if it belongs at `desired`. */
+function* everyRanking() {
+  for (let size = 0; size <= 64; size++) {
+    const ranked = Array.from({ length: size }, (_, i) => i);
+    for (let desired = 0; desired <= size; desired++) {
+      yield { ranked, desired };
+    }
+  }
+}
+
+describe('progress bar (#62)', () => {
+  it('only grows after an answer, for every insertion position, and ends full', () => {
+    for (const { ranked, desired } of everyRanking()) {
+      let session: RankingSession<number> = startRanking(ranked, -1);
+      let answered = 0;
+      let fraction = progressFraction(answered, comparisonsLeft(session));
+      for (let opponent = nextOpponent(session); opponent !== undefined; opponent = nextOpponent(session)) {
+        session = choose(session, desired <= session.others.indexOf(opponent));
+        answered++;
+        const next = progressFraction(answered, comparisonsLeft(session));
+        expect(next).toBeGreaterThan(fraction);
+        fraction = next;
+      }
+
+      expect(fraction).toBe(1);
+    }
+  });
+
+  it('starts empty when there are questions, and is full when there are none', () => {
+    expect(progressFraction(0, 4)).toBe(0);
+    expect(progressFraction(0, 0)).toBe(1);
+    expect(progressFraction(2, 2)).toBe(0.5);
+  });
+});
+
+describe('placeRange (#63)', () => {
+  it('starts as the whole list, counting the new movie', () => {
+    expect(placeRange(startRanking(Array.from({ length: 10 }, (_, i) => i), -1))).toEqual({
+      best: 1,
+      worst: 11,
+      total: 11,
+    });
+  });
+
+  it('shrinks with every answer and always contains the final place', () => {
+    for (const { ranked, desired } of everyRanking()) {
+      let session: RankingSession<number> = startRanking(ranked, -1);
+      const finalPlace = desired + 1;
+      let range = placeRange(session);
+      expect(range.best).toBeLessThanOrEqual(finalPlace);
+      expect(range.worst).toBeGreaterThanOrEqual(finalPlace);
+      for (let opponent = nextOpponent(session); opponent !== undefined; opponent = nextOpponent(session)) {
+        session = choose(session, desired <= session.others.indexOf(opponent));
+        const next = placeRange(session);
+        expect(next.worst - next.best).toBeLessThan(range.worst - range.best);
+        expect(next.best).toBeLessThanOrEqual(finalPlace);
+        expect(next.worst).toBeGreaterThanOrEqual(finalPlace);
+        range = next;
+      }
+
+      expect(range).toEqual({ best: finalPlace, worst: finalPlace, total: ranked.length + 1 });
+    }
+  });
+
+  it('re-ranking counts the list without the movie twice', () => {
+    expect(placeRange(startRanking(['A', 'B', 'C'], 'B'))).toEqual({ best: 1, worst: 3, total: 3 });
   });
 });
 

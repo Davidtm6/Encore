@@ -7,6 +7,7 @@ import { ComparisonPair } from '@/components/comparison-pair';
 import { confirmAction } from '@/components/confirm';
 import { ErrorBanner } from '@/components/error-banner';
 import { PosterTile } from '@/components/poster-tile';
+import { ProgressBar } from '@/components/progress-bar';
 import { RankBadge } from '@/components/rank-badge';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -63,18 +64,24 @@ export default function RankScreen() {
   } else if (opponent) {
     const question = progress.answered + 1;
     const most = progress.answered + progress.left;
+    const count = question === most ? `Question ${question} (last one)` : `Question ${question} of up to ${most}`;
     content = (
       <>
-        <ThemedText type="small" themeColor="textSecondary" style={styles.center}>
-          {question === most ? `Question ${question} (last one)` : `Question ${question} of up to ${most}`}
-        </ThemedText>
+        <View style={styles.progress}>
+          <ThemedText type="small" themeColor="textSecondary" style={styles.center} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+            {count}
+          </ThemedText>
+          <ProgressBar fraction={progress.fraction} label={count} />
+        </View>
         <ThemedText type="smallBold" themeColor="textSecondary" style={styles.center} accessibilityRole="header">
           Which did you enjoy more?
         </ThemedText>
         <ComparisonPair movie={movie} opponent={opponent} onChoose={ranking.choose} />
         {range && range.best !== range.worst && (
-          <ThemedText type="small" themeColor="textSecondary" style={styles.center}>
-            {movie.title} could land anywhere from #{range.best} to #{range.worst}.
+          <ThemedText type="small" themeColor="textSecondary" style={styles.center} accessibilityLiveRegion="polite">
+            {range.best === 1 && range.worst === range.total
+              ? `${movie.title} could land anywhere on your list of ${range.total}.`
+              : `${movie.title} could land anywhere from #${range.best} to #${range.worst} of ${range.total}.`}
           </ThemedText>
         )}
         <View style={styles.row}>
@@ -96,6 +103,7 @@ export default function RankScreen() {
   } else {
     content = (
       <>
+        {progress.answered > 0 && <ProgressBar fraction={1} label="All questions answered" />}
         <View style={styles.result} accessible accessibilityLabel={`Number ${position} of ${total}`}>
           <PosterTile movie={movie} size="large" />
           {position !== null && <RankBadge rank={position} size="large" />}
@@ -170,6 +178,9 @@ function Neighbor({ label, rank, movie }: { label: string; rank: number; movie: 
 }
 
 const styles = StyleSheet.create({
+  progress: {
+    gap: Spacing.two,
+  },
   fill: {
     flex: 1,
   },
