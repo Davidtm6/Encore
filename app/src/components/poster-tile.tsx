@@ -10,13 +10,14 @@ const SIZES = {
 
 type PosterTileProps = {
   movie: Movie;
-  size?: keyof typeof SIZES;
+  /** A fixed size, or 'fill' to take the container's width at the poster's 2:3 shape (the My List grid). */
+  size?: keyof typeof SIZES | 'fill';
 };
 
 /** The movie's poster, or a colored tile with its initials when there is none. */
 export function PosterTile({ movie, size = 'small' }: PosterTileProps) {
-  const { width, height, fontSize } = SIZES[size];
-  const frame = [styles.frame, { width, height }];
+  const { fontSize } = size === 'fill' ? { fontSize: 28 } : SIZES[size];
+  const frame = [styles.frame, size === 'fill' ? styles.fill : { width: SIZES[size].width, height: SIZES[size].height }];
 
   if (movie.poster_url) {
     return <Image source={movie.poster_url} style={frame} contentFit="cover" accessible={false} />;
@@ -45,6 +46,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
+  },
+  fill: {
+    width: '100%',
+    aspectRatio: 2 / 3,
   },
   initials: {
     color: '#FFFFFF',

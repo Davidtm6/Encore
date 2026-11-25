@@ -1,6 +1,7 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, SectionList, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, SectionList, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/button';
@@ -8,6 +9,8 @@ import { confirmAction } from '@/components/confirm';
 import { ErrorBanner } from '@/components/error-banner';
 import { ListSeparator } from '@/components/list-separator';
 import { MovieCard } from '@/components/movie-card';
+import { PosterGridTile } from '@/components/poster-grid-tile';
+import { SegmentedControl } from '@/components/segmented-control';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
@@ -16,10 +19,58 @@ import { useMyMovies } from '@/hooks/use-my-movies';
 import { useTheme } from '@/hooks/use-theme';
 import { signOut } from '@/services/auth-service';
 import { messageOf } from '@/services/errors';
+import {
+  chunk,
+  gridColumns,
+  type ListSort,
+  type ListView,
+  listSections,
+  locate,
+  readChoice,
+  SORT_OPTIONS,
+  VIEW_OPTIONS,
+} from '@/services/my-list-layout';
 import type { WatchedMovie } from '@/services/watched-service';
 
 /** How long a just-ranked movie stays highlighted. */
 const HIGHLIGHT_MS = 3000;
+
+/** What each section of My List carries besides its films. */
+type SectionInfo = { key: string; title: string };
+
+/** Space between grid tiles. */
+const GRID_GAP = Spacing.two;
+
+/** Where this device remembers the chosen view and sort (#82). */
+const VIEW_KEY = 'encore.myList.view';
+const SORT_KEY = 'encore.myList.sort';
+
+/**
+ * The view and sort, remembered on this device. Storage is a convenience: if
+ * it can't be read or written, the list still works with the defaults.
+ */
+function useListChoices() {
+  const [view, setView] = useState<ListView>('list');
+  const [sort, setSort] = useState<ListSort>('score');
+
+  useEffect(() => {
+    AsyncStorage.multiGet([VIEW_KEY, SORT_KEY])
+      .then(([[, savedView], [, savedSort]]) => {
+        setView(readChoice(savedView, VIEW_OPTIONS, 'list'));
+        setSort(readChoice(savedSort, SORT_OPTIONS, 'score'));
+      })
+      .catch(() => {});
+  }, []);
+
+  function choose<T extends string>(key: string, set: (value: T) => void) {
+    return (value: T) => {
+      set(value);
+      AsyncStorage.setItem(key, value).catch(() => {});
+    };
+  }
+
+  return { view, sort, setView: choose<ListView>(VIEW_KEY, setView), setSort: choose<ListSort>(SORT_KEY, setSort) };
+}
 
 /**
  * Sign out sits next to About and is easy to tap by accident (#69), so it asks
@@ -45,16 +96,19 @@ async function confirmSignOut() {
 export default function MyListScreen() {
   const theme = useTheme();
   const { ranked, unranked, loading, error, refreshing, refresh, reload } = useMyMovies();
-  const listRef = useRef<SectionList<WatchedMovie>>(null);
+  const { view, sort, setView, setSort } = useListChoices();
+  const listRef = useRef<SectionList<WatchedMovie, SectionInfo>>(null);
+  const gridRef = useRef<SectionList<WatchedMovie[], SectionInfo>>(null);
   const [saved, setSaved] = useState<SavedRankingNotice | null>(null);
   const [highlightId, setHighlightId] = useState<number | null>(null);
 
-  // Movies waiting to be ranked come first, so the next step is at the top
-  // however long the ranking gets (#50).
-  const sections = [
-    { title: `Waiting to be ranked (${unranked.length})`, data: unranked },
-    { title: 'Your ranking', data: ranked },
-  ].filter((section) => section.data.length > 0);
+  // By score, movies waiting to be ranked come first, so the next step is at
+  // the top however long the ranking gets (#50).
+  const sections = listSections([...unranked, ...ranked], sort);
+  // The grid shows the same sections, a row of posters at a time.
+  const { width } = useWindowDimensions();
+  const columns = gridColumns(Math.min(width, MaxContentWidth) - Spacing.three * 2, GRID_GAP);
+  const gridSections = sections.map((section) => ({ ...section, data: chunk(section.data, columns) }));
 
   // A ranking saved on the Rank screen shows up here once (#51).
   useFocusEffect(
@@ -67,18 +121,37 @@ export default function MyListScreen() {
     }, []),
   );
 
-  // Once the reloaded list has the movie in its saved place, scroll to it.
+  // Once the reloaded list has the movie in its saved place, scroll to it,
+  // in whichever view and sort is showing.
   const savedIndex = saved ? ranked.findIndex((m) => m.movie.id === saved.movieId) : -1;
   const savedInPlace = saved !== null && savedIndex === saved.position - 1;
-  const rankingSection = unranked.length > 0 ? 1 : 0;
-  useEffect(() => {
-    if (!savedInPlace) {
+  const found = savedInPlace ? locate(sections, saved.movieId) : null;
+  const target = found && (view === 'grid' ? { ...found, itemIndex: Math.floor(found.itemIndex / columns) } : found);
+  const sectionIndex = target?.sectionIndex ?? -1;
+  const itemIndex = target?.itemIndex ?? -1;
+  const scrollToSaved = useCallback(() => {
+    if (sectionIndex === -1) {
       return;
     }
-    listRef.current?.scrollToLocation({ sectionIndex: rankingSection, itemIndex: savedIndex, viewPosition: 0.3 });
+    const location = { sectionIndex, itemIndex, viewPosition: 0.3 };
+    (view === 'grid' ? gridRef : listRef).current?.scrollToLocation(location);
+  }, [view, sectionIndex, itemIndex]);
+  useEffect(() => {
+    if (sectionIndex === -1) {
+      return;
+    }
+    scrollToSaved();
     const timer = setTimeout(() => setHighlightId(null), HIGHLIGHT_MS);
     return () => clearTimeout(timer);
-  }, [savedInPlace, savedIndex, rankingSection]);
+  }, [sectionIndex, scrollToSaved]);
+
+  const sectionHeader = ({ section }: { section: SectionInfo }) => (
+    <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionTitle}>
+      {section.title}
+    </ThemedText>
+  );
+  // Rows far down a long list may not be measured yet; try again once they are.
+  const retryScroll = () => setTimeout(scrollToSaved, 250);
 
   return (
     <ThemedView style={styles.fill}>
@@ -106,18 +179,52 @@ export default function MyListScreen() {
             <Button label="OK" variant="plain" size="small" accessibilityLabel="Dismiss" onPress={() => setSaved(null)} />
           </View>
         )}
+        {!loading && sections.length > 0 && (
+          <View style={styles.controls}>
+            <SegmentedControl label="View" options={VIEW_OPTIONS} value={view} onChange={setView} />
+            <SegmentedControl label="Sort by" options={SORT_OPTIONS} value={sort} onChange={setSort} />
+          </View>
+        )}
         {loading ? (
           <ActivityIndicator style={styles.loading} accessibilityLabel="Loading your list" />
+        ) : view === 'grid' ? (
+          <SectionList
+            ref={gridRef}
+            sections={gridSections}
+            keyExtractor={(row) => row.map((item) => item.movie.id).join('-')}
+            renderSectionHeader={sectionHeader}
+            renderItem={({ item: row }) => (
+              <View style={styles.gridRow}>
+                {row.map((item) => (
+                  <PosterGridTile
+                    key={item.movie.id}
+                    movie={item.movie}
+                    rank={item.rankPosition}
+                    score={item.score}
+                    reviewed={item.review !== null}
+                    highlighted={item.movie.id === highlightId}
+                    onPress={() => openMovie(item.movie.id)}
+                  />
+                ))}
+                {/* Empty cells keep a short last row's posters the same width as the rest. */}
+                {Array.from({ length: columns - row.length }, (_, i) => (
+                  <View key={`empty-${i}`} style={styles.gridSpacer} />
+                ))}
+              </View>
+            )}
+            ListEmptyComponent={error ? undefined : EmptyList}
+            refreshing={refreshing}
+            onRefresh={refresh}
+            stickySectionHeadersEnabled={false}
+            contentContainerStyle={styles.list}
+            onScrollToIndexFailed={retryScroll}
+          />
         ) : (
           <SectionList
             ref={listRef}
             sections={sections}
             keyExtractor={(item) => String(item.movie.id)}
-            renderSectionHeader={({ section }) => (
-              <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionTitle}>
-                {section.title}
-              </ThemedText>
-            )}
+            renderSectionHeader={sectionHeader}
             renderItem={({ item }) => (
               <WatchedRow item={item} highlighted={item.movie.id === highlightId} />
             )}
@@ -127,18 +234,7 @@ export default function MyListScreen() {
             onRefresh={refresh}
             stickySectionHeadersEnabled={false}
             contentContainerStyle={styles.list}
-            // Rows far down a long list may not be measured yet; try again once they are.
-            onScrollToIndexFailed={({ index }) =>
-              setTimeout(
-                () =>
-                  listRef.current?.scrollToLocation({
-                    sectionIndex: rankingSection,
-                    itemIndex: index,
-                    viewPosition: 0.3,
-                  }),
-                250,
-              )
-            }
+            onScrollToIndexFailed={retryScroll}
           />
         )}
       </SafeAreaView>
@@ -168,7 +264,7 @@ function WatchedRow({ item, highlighted }: WatchedRowProps) {
       note={review ? 'Reviewed' : undefined}
       highlighted={highlighted}
       compact
-      onPress={() => router.push({ pathname: '/movie/[movieId]', params })}
+      onPress={() => openMovie(movie.id)}
       accessibilityHint="Opens the movie’s page to re-rank, review, or remove it, and see your friends’ takes"
       trailing={
         rankPosition === null ? (
@@ -182,6 +278,11 @@ function WatchedRow({ item, highlighted }: WatchedRowProps) {
       }
     />
   );
+}
+
+/** Opens a movie's page, which has Rank or Re-rank, Review, and Remove. */
+function openMovie(movieId: number) {
+  router.push({ pathname: '/movie/[movieId]', params: { movieId: String(movieId) } });
 }
 
 /**
@@ -255,6 +356,24 @@ const styles = StyleSheet.create({
   },
   list: {
     paddingBottom: BottomTabInset + Spacing.three,
+  },
+  controls: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: Spacing.two,
+  },
+  gridRow: {
+    flexDirection: 'row',
+    gap: GRID_GAP,
+    marginBottom: GRID_GAP,
+  },
+  // Same padding and border as a tile, so short rows keep the same tile width.
+  gridSpacer: {
+    flex: 1,
+    padding: Spacing.half,
+    borderWidth: 2,
+    borderColor: 'transparent',
   },
   sectionTitle: {
     paddingTop: Spacing.four,

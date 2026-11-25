@@ -32,7 +32,8 @@ export function VisibilityPicker({ value, onChange, disabled = false }: Visibili
               accessibilityRole="radio"
               accessibilityLabel={option.label}
               accessibilityHint={option.hint}
-              accessibilityState={{ checked: selected, disabled }}
+              aria-checked={selected}
+              aria-disabled={disabled}
               disabled={disabled}
               onPress={() => onChange(option.value)}
               style={[styles.option, selected && { backgroundColor: theme.accent }]}>

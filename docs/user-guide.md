@@ -34,6 +34,15 @@ Each ranked movie gets a score from 0.0 to 10.0. Loved movies score 6.7–10, ok
 
 If Encore says "Your list changed in another session, so this ranking started over," your list was changed on another device or tab while you were ranking. Answer the questions again and save.
 
+## Browse your list
+
+At the top of My List:
+
+- **List** or **Grid**. Grid shows your posters, three or more across, each with its rank and score underneath, or **Not ranked** if it doesn't have a place yet. Tap a poster to open the movie's page.
+- **Sort by Score** shows movies waiting to be ranked first, then your ranking, best first. **Sort by Recently added** shows everything on your list, newest first.
+
+Encore remembers your choice on each device.
+
 ## Re-rank, review, or remove a movie
 
 Tap a movie in My List to open its page. Under **Your take**:

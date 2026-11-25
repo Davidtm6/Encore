@@ -13,6 +13,8 @@ export interface WatchedMovie {
   /** 0.0–10.0 from the tier and the place within it; null until the movie is ranked. */
   score: number | null;
   review: string | null;
+  /** When it was marked watched, as an ISO timestamp, for sorting by recently added (#82). */
+  addedAt: string;
 }
 
 /** The signed-in user's watched list: ranked films best first, then unranked, newest first. */
@@ -28,7 +30,7 @@ export async function listMyMovies(): Promise<WatchedMovie[]> {
 export async function listWatched(userId: string, failure: string): Promise<WatchedMovie[]> {
   const { data, error } = await supabase
     .from('watched_movies')
-    .select(`rank_position, tier, movies(${MOVIE_FIELDS}), reviews(body)` as const)
+    .select(`rank_position, tier, created_at, movies(${MOVIE_FIELDS}), reviews(body)` as const)
     .eq('user_id', userId)
     .order('rank_position', { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: false });
@@ -40,6 +42,7 @@ export async function listWatched(userId: string, failure: string): Promise<Watc
     rankPosition: row.rank_position,
     tier: row.rank_position === null ? null : readTier(row.tier),
     review: row.reviews?.body ?? null,
+    addedAt: row.created_at,
   }));
   // Rows come best first, so the ranked ones are already in list order.
   const scores = scoresForList(

@@ -77,6 +77,7 @@ read -s TMDB_READ_ACCESS_TOKEN && export TMDB_READ_ACCESS_TOKEN && npm test -- t
 | `app/src/services/auth-validation.test.ts` | The sign-in and sign-up form rules, and that every invalid field is reported at once |
 | `app/src/services/friends.test.ts` | Sorting your adds into friends, "Added you", and "Waiting for them to add you back"; naming a relation; and building a safe username search pattern |
 | `app/src/services/comments.test.ts` | Comments: the length limit, who can edit or delete, spotting an edited comment, counting comments per review, and the comments button's label |
+| `app/src/services/my-list-layout.test.ts` | My List's views (#82): sections by score (unranked newest first, then the ranking) and by recently added, stable ties, finding a film to scroll to it, grid columns for phone and wide screens, splitting into rows, and reading a remembered view or sort |
 | `app/src/services/movie-page.test.ts` | The movie page: sorting reviews and watched rows into your take, friends (best-placed first, then unranked), and other people's public reviews (never with a rank); "#4 of 62" and its spoken form |
 | `app/src/services/tmdb-rating.test.ts` | The TMDB score in search: "★ 8.5" and its spoken form, hidden under 10 votes or when TMDB has none |
 | `app/src/services/review-visibility.test.ts` | Review visibility: friends-only by default, reading a stored value safely, and the picker's options and hints |
