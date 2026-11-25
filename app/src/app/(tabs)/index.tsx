@@ -164,6 +164,7 @@ function WatchedRow({ item, highlighted }: WatchedRowProps) {
     <MovieCard
       movie={movie}
       rank={rankPosition ?? undefined}
+      score={item.score}
       note={review ? 'Reviewed' : undefined}
       highlighted={highlighted}
       compact

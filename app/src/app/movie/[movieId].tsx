@@ -65,7 +65,7 @@ export default function MovieScreen() {
         {loading && <ActivityIndicator style={styles.loading} accessibilityLabel="Loading this movie" />}
         {page && (
           <>
-            <MovieCard movie={page.movie} rank={page.mine?.placement?.position} />
+            <MovieCard movie={page.movie} rank={page.mine?.placement?.position} score={page.mine?.placement?.score} />
 
             <Section title="Your take">
               {page.mine ? (

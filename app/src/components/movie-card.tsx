@@ -6,6 +6,7 @@ import { RankBadge } from '@/components/rank-badge';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { formatScore } from '@/ranking/score';
 import type { Movie } from '@/services/movie-service';
 import type { RatingText } from '@/services/tmdb-rating';
 
@@ -13,6 +14,8 @@ type MovieCardProps = {
   movie: Movie;
   /** Shown in a circle on the right for ranked movies. */
   rank?: number;
+  /** The 0.0–10.0 score, shown under the rank (#60). */
+  score?: number | null;
   note?: string;
   /** TMDB's audience score, shown after the year and director (search results only, #85). */
   rating?: RatingText | null;
@@ -36,6 +39,7 @@ type MovieCardProps = {
 export function MovieCard({
   movie,
   rank,
+  score,
   note,
   rating,
   description,
@@ -53,7 +57,10 @@ export function MovieCard({
     .filter(Boolean)
     .join(', ');
 
-  const label = [rank && `Number ${rank}`, movie.title, spokenDetails, description].filter(Boolean).join(', ');
+  const scoreText = score === undefined || score === null ? null : formatScore(score);
+  const label = [rank && `Number ${rank}`, scoreText && `score ${scoreText}`, movie.title, spokenDetails, description]
+    .filter(Boolean)
+    .join(', ');
 
   return (
     <View style={[styles.row, compact && styles.compact, highlighted && { backgroundColor: theme.accentSoft }]}>
@@ -82,7 +89,16 @@ export function MovieCard({
             </ThemedText>
           ) : null}
         </View>
-        {rank !== undefined && <RankBadge rank={rank} />}
+        {rank !== undefined && (
+          <View style={styles.rank}>
+            <RankBadge rank={rank} />
+            {scoreText && (
+              <ThemedText type="smallBold" themeColor="scoreText">
+                {scoreText}
+              </ThemedText>
+            )}
+          </View>
+        )}
       </Pressable>
       {/* Outside the row's own button, so screen readers reach it separately. */}
       {trailing}
@@ -124,6 +140,10 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.7,
+  },
+  rank: {
+    alignItems: 'center',
+    gap: Spacing.half,
   },
   actions: {
     flexDirection: 'row',

@@ -4,6 +4,7 @@
  * your take, your friends' takes, and everyone else's public reviews.
  */
 
+import { formatScore, readTier, scoresForList } from '@/ranking/score';
 import { readVisibility, type ReviewVisibility } from '@/services/review-visibility';
 
 /** A review row as loaded for one movie. RLS returns yours, your friends', and public ones. */
@@ -23,11 +24,19 @@ export interface WatchedRow {
   rank_position: number | null;
 }
 
+/** One film in someone's ranking, as loaded to work out this movie's score. */
+export interface RankedRow {
+  rank_position: number;
+  tier: string | null;
+}
+
 /** Where someone ranked this movie in their list. */
 export interface Placement {
   position: number;
   /** How many films they've ranked. */
   outOf: number;
+  /** 0.0–10.0 from the tier and place (#60); null if the tiers couldn't be read. */
+  score: number | null;
 }
 
 export interface Take {
@@ -51,19 +60,33 @@ export interface MoviePageRows {
   myId: string;
   reviews: readonly ReviewRow[];
   watched: readonly WatchedRow[];
-  /** Number of ranked films per user id, for people who ranked this movie. */
-  rankedCounts: ReadonlyMap<string, number>;
+  /** Each ranked film's place and tier, per user id, for people who ranked this movie. */
+  rankings: ReadonlyMap<string, readonly RankedRow[]>;
   usernames: ReadonlyMap<string, string>;
 }
 
-/** "#4 of 62", or "#1" for someone who has ranked only this film. */
-export function placementLabel({ position, outOf }: Placement): string {
-  return outOf > 1 ? `#${position} of ${outOf}` : `#${position}`;
+/** "#4 of 62 · 8.7", or "#1 · 10.0" for someone who has ranked only this film. */
+export function placementLabel({ position, outOf, score }: Placement): string {
+  const place = outOf > 1 ? `#${position} of ${outOf}` : `#${position}`;
+  return score === null ? place : `${place} · ${formatScore(score)}`;
 }
 
-/** The read-aloud version of placementLabel: "ranked 4th of 62". */
-export function spokenPlacement({ position, outOf }: Placement): string {
-  return outOf > 1 ? `ranked ${ordinal(position)} of ${outOf}` : `ranked ${ordinal(position)}`;
+/** The read-aloud version of placementLabel: "ranked 4th of 62, score 8.7". */
+export function spokenPlacement({ position, outOf, score }: Placement): string {
+  const place = outOf > 1 ? `ranked ${ordinal(position)} of ${outOf}` : `ranked ${ordinal(position)}`;
+  return score === null ? place : `${place}, score ${formatScore(score)}`;
+}
+
+/** Where `position` sits in one person's ranking, with its score. */
+export function placementIn(ranking: readonly RankedRow[], position: number): Placement {
+  const bestFirst = [...ranking].sort((a, b) => a.rank_position - b.rank_position);
+  const tiered = bestFirst.flatMap((row) => {
+    const tier = readTier(row.tier);
+    return tier === null ? [] : [{ id: row.rank_position, tier }];
+  });
+  // A row without a readable tier would throw the scores off, so show none.
+  const scores = tiered.length === ranking.length ? scoresForList(tiered) : new Map<number, number>();
+  return { position, outOf: Math.max(ranking.length, position), score: scores.get(position) ?? null };
 }
 
 function ordinal(n: number): string {
@@ -83,15 +106,14 @@ export function userIdsOnPage(reviews: readonly ReviewRow[], watched: readonly W
 }
 
 /** Sorts one movie's rows into the page's three groups. */
-export function buildTakes({ myId, reviews, watched, rankedCounts, usernames }: MoviePageRows): MoviePageTakes {
+export function buildTakes({ myId, reviews, watched, rankings, usernames }: MoviePageRows): MoviePageTakes {
   const reviewsBy = new Map(reviews.map((row) => [row.user_id, row]));
   const take = (userId: string, rankPosition: number | null): Take => {
     const review = reviewsBy.get(userId);
     return {
       userId,
       username: usernames.get(userId) ?? 'Someone',
-      placement:
-        rankPosition === null ? null : { position: rankPosition, outOf: rankedCounts.get(userId) ?? rankPosition },
+      placement: rankPosition === null ? null : placementIn(rankings.get(userId) ?? [], rankPosition),
       review: review
         ? { body: review.body, visibility: readVisibility(review.visibility), updatedAt: review.updated_at }
         : null,

@@ -73,8 +73,8 @@ Users can view their saved watched list, ranking, and reviews after signing back
 - **Trigger:** user chooses Rank on an unranked watched movie.
 - **Preconditions:** the movie is watched and unranked.
 - **Postconditions:** the movie has one position in the saved ranking; existing movies keep their relative order.
-- **Steps:** open comparison; choose the preferred film in each pair; finish comparisons; confirm the result; view the saved ranking.
-- **Extensions:** the first film becomes number one without comparisons; cancel leaves the ranking unchanged.
+- **Steps:** open comparison; say whether you loved it, thought it was okay, or didn't like it; choose the preferred film in each pair, which comes only from that tier; finish comparisons; confirm the result and its 0.0–10.0 score; view the saved ranking.
+- **Extensions:** the first film in a tier takes that tier's place without comparisons; a pair that's too close to call can be skipped, and another film from the range is asked instead; cancel leaves the ranking unchanged.
 - **Exceptions:** a failed save or another session changing the list prompts a retry; no partial ranking is saved.
 
 ### UC4 — Re-rank a movie (Nathan Simon)
@@ -83,8 +83,8 @@ Users can view their saved watched list, ranking, and reviews after signing back
 - **Trigger:** user selects Re-rank on a ranked movie.
 - **Preconditions:** the user owns the ranking; the movie already has a position.
 - **Postconditions:** the movie appears once at its updated position; other movies keep their relative order.
-- **Steps:** select the movie; start re-ranking; answer comparisons; confirm; inspect the updated order.
-- **Extensions:** cancel preserves the old order; answers may produce the same position.
+- **Steps:** select the movie; start re-ranking; pick its tier again (the last answer is highlighted); answer or skip comparisons; confirm; inspect the updated order and score.
+- **Extensions:** cancel preserves the old order; answers may produce the same position; picking a different tier moves the movie into that tier's part of the list.
 - **Exceptions:** a failed save or conflicting edits preserve the last valid order and offer a retry.
 
 ### UC5 — Write or edit a review (Alex Knotwell)
@@ -148,12 +148,12 @@ Weekly planning and demos, a midweek check-in, and one review per PR. No stretch
 | # | Risk | Likelihood | Impact | Reduction | Detection | Mitigation |
 | --- | --- | --- | --- | --- | --- | --- |
 | 1 | IMDb data unavailable (the official API is a paid commercial product; TMDB is free for noncommercial use with attribution) | High | Medium | Put all movie lookups behind one search module; use 50 sample films until the provider is confirmed; confirm TMDB terms and rate limits in week 1 | A CI test calls the provider and checks the response format on every run | Switch the search module to TMDB; nothing else changes |
-| 2 | Comparison fatigue (binary insertion needs about log₂ n comparisons, roughly 7 for 100 films; not yet tested with users) | Medium | High | One simple question per screen; test the mockup with 3 users in week 2 | Users stalling or quitting in usability sessions; comparisons per ranking tracked in the app | Cap comparisons, add "skip" or "too close to call", and simplify prompts |
+| 2 | Comparison fatigue (binary insertion needs about log₂ n comparisons, roughly 7 for 100 films; not yet tested with users) | Medium | High | One simple question per screen; test the mockup with 3 users in week 2 | Users stalling or quitting in usability sessions; comparisons per ranking tracked in the app | Done (#60, #43): a tier question first limits comparisons to one tier, and any pair can be skipped as too close to call. Still to do: cap comparisons if counts stay high |
 | 3 | Private data exposed (Supabase tables are reachable through its public API unless RLS is enabled on every table) | Medium | High | Enable RLS on every table from day one; David reviews policies on each schema PR | A security suite where a second account tries to read and edit the first account's data through direct API requests | Disable the affected endpoint, fix the policy, and add a regression test |
 | 4 | Corrupted rankings (two open sessions or a dropped connection could save a partial or outdated order) | Low | High | Each save goes through one Supabase database function that checks the list hasn't changed since it was loaded and writes the whole order at once | Concurrent-session, cancel, interrupted-save, and offline tests in week 5; a check for duplicate positions | Reject the save, keep the last valid order, and prompt the user to retry |
 | 5 | Mobile build or distribution blocked (TestFlight needs a paid Apple Developer account and Google Play needs a developer account; no EAS build run yet) | Medium | High | Set up both store accounts and run first EAS builds, a TestFlight upload, and a Play internal-testing upload in week 1; use Expo Go day to day | A CI build fails or a store upload is rejected | Test in Expo Go, the iOS Simulator, and the Android emulator while fixing the build; lend team phones to testers |
 
-**Status of risk 2.** Large lists are measured (#64; the tables are in [testing](testing.md#ranking-large-lists)): placing one film takes at most 10 comparisons even at 1,000 films, so list length alone isn't the risk. Building a list from nothing is: 100 films take 480–573 comparisons. That points to #60 (narrowing with a first rough answer) for people adding many films, and to revisiting the 100-per-hour matchup limit in #14. Still to measure with users: how many comparisons people put up with in a session (#38).
+**Status of risk 2.** Large lists are measured (#64; the tables are in [testing](testing.md#ranking-large-lists)): placing one film takes at most 10 comparisons even at 1,000 films, so list length alone isn't the risk. Building a list from nothing is: 100 films take 480–573 comparisons. Tiers (#60) cut each placement by about 1.6 comparisons on a long list and skip (#43) helps with hard pairs, but a big import still means hundreds of questions, so the 100-per-hour matchup limit in #14 should be revisited. Still to measure with users: how many comparisons people put up with in a session (#38).
 
 **Changes since the requirements document.** That document listed one risk: whether ranking stays consistent for a user with 12 movies versus 100+. We lowered it, because binary insertion works the same way at any list size; only the number of comparisons grows, which risk 2 now covers. Risks 1, 3, 4, and 5 are new, and risk 5 comes from switching to a mobile app.
 
@@ -272,10 +272,10 @@ All data is stored in Supabase.
 | `rankings` | A record of each saved ranking |
 
 The migrations in `supabase/migrations/` implement:
-- the tables `profiles`, `movies`, `watched_movies` (which also holds each movie's rank position), and `reviews`;
+- the tables `profiles`, `movies`, `watched_movies` (which also holds each movie's rank position and tier: `loved`, `okay`, or `disliked`), and `reviews`;
 - `movies.director`, filled in from TMDB's credits by the `search-movies` function for films on someone's list, and `null` until then or when TMDB has none (see [movie search](movie-search.md#directors));
 - a trigger that creates a profile at sign-up;
-- `save_ranking`, the atomic save, which rewrites a user's whole order in one statement after checking it against the saved list;
+- `save_ranking`, the atomic save, which rewrites a user's whole order and each movie's tier in one statement after checking it against the saved list and checking that loved movies come first, then okay, then disliked;
 - `reviews.visibility` (#15): `'friends'` (the default) lets the author and their friends read a review, and `'public'` lets every signed-in user read it. The author chooses per review. Reviews written before this existed became `'friends'`. `is_friend(other)` is the shared check for "the caller and `other` have each added the other";
 - `review_comments` (#41): comments on a review, readable and writable by anyone who can read that review (checked through `reviews`' own RLS), editable and deletable only by their author, and deleted with the review. Only the text can be edited;
 - `follows` (stretch goal, #39 and #40), with row-level security so people see only the adds they made or received, and a read-only policy on `watched_movies` that shows a user's list and ranking to people they're friends with. Writes to `watched_movies` stay owner-only, and the app filters its own list by user ID because RLS alone would now also return friends' rows.
@@ -308,7 +308,11 @@ The repository has two top-level code folders: `app/` (Expo app) and `supabase/`
 
 ### Ranking algorithm
 
-Maintain a best-to-worst list. To add a movie, compare it with the middle movie of the remaining interval. If the user prefers the new movie, search the better half; otherwise search the worse half. Insert when one position remains. For `n` ranked movies this takes at most `ceil(log2(n + 1))` comparisons: up to 4 for 12 movies and up to 7 for 100; an empty list needs none. Canceling leaves the stored ranking unchanged. Re-ranking removes the movie from its position and repeats insertion into the remaining list.
+Maintain a best-to-worst list made of three tiers: every movie the user loved, then every movie they thought was okay, then every movie they didn't like. To add a movie, first ask its tier; the search only covers that tier's part of the list, and an empty tier places the movie with no comparisons. Within the tier, compare it with the middle movie of the remaining interval. If the user prefers the new movie, search the better half; otherwise search the worse half. Insert when one position remains. For `n` ranked movies this takes at most `ceil(log2(n + 1))` comparisons: up to 4 for 12 movies and up to 7 for 100; an empty list needs none. Canceling leaves the stored ranking unchanged. Re-ranking removes the movie from its position and repeats insertion into the remaining list, starting with the tier question.
+
+**Skip (#43).** When a pair is too close to call, the user can skip it. The next opponent is the unskipped movie nearest the middle of the interval (middle + 1, then − 1, then + 2, …), and the interval narrows around whichever movie was shown. If every movie left in the interval has been skipped, the new movie goes in the middle of it. A skip can leave the movie one place away from where perfect answers would put it, always beside a movie it was never compared with.
+
+**Score (#60).** Each ranked movie has a 0.0–10.0 score from its tier and its place in the tier: loved movies score 6.7–10.0, okay 3.4–6.6, and disliked 0.0–3.3. A tier's best movie gets the top of the band and its worst the bottom, with the rest evenly spaced, rounded to one decimal; a tier of one gets the top. The score is computed in the app (`app/src/ranking/score.ts`) from the saved order, so it's never stored and can't go stale. Rankings saved before tiers were split into thirds of each list by the `ranking_tiers` migration.
 
 The Python prototype in `prototype/` explores this algorithm and tests every insertion position for list sizes 0 through 128. It is a reference for the TypeScript engine, not application code.
 
@@ -325,7 +329,6 @@ These are places where the team document disagrees with itself or leaves a choic
 - **Ranking model.** Sections 7.3 and 7.5 mention Elo and assume no re-ranking, but UC4 makes re-ranking an MVP feature and the risks, tests, and schedule all assume binary insertion into an ordered list. This file assumes binary insertion.
 - **Where the atomic save lives.** Risk 4 describes a Supabase database function; section 7.2 describes an API transaction. Both can hold if the API calls one database function that checks a list version and rewrites the order.
 - **Offline ranking.** Section 7.4 assumes rankings work offline, but saves go through the API. Decide whether offline means queued saves or comparisons only.
-- **Ties and skips.** Risk 2's mitigation adds "skip" or "too close to call", which the strict ordering does not yet support.
 - **Web leftovers.** The team document's accessibility requirement (section 4) still asks for keyboard use with visible focus. This file rewrites it for mobile (VoiceOver and TalkBack). The revised pitch's technical approach (section 2) also still says a React frontend deployed on Vercel with the IMDb API, which contradicts the Expo app and TMDB in the same section. This file keeps Expo and TMDB.
 - **Where decisions live.** Section 1 says decisions go in a shared Word doc; section 6 says Google Docs.
 - **iOS-only wording.** The team document says iOS throughout (TestFlight, VoiceOver, iOS Simulator). This file says iOS and Android, since Expo builds both; the team document should be updated to match, and the team needs a Google Play developer account and an Android test device.

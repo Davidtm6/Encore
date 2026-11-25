@@ -32,10 +32,10 @@ CI (`.github/workflows/ci.yml`) runs Jest, app typecheck+lint, `npm run build`, 
 
 **No API server yet.** The app talks to Supabase directly with the publishable key (`app/.env.development`, committed; override in `.env.local`). The security boundary is therefore RLS on every table plus database functions like `save_ranking`, not app code.
 
-**Ranking:** binary insertion into a best-to-worst list.
-- `app/src/ranking/ranking-session.ts` is a pure, immutable step-by-step engine (`startRanking` → `nextOpponent`/`choose` → `finalOrder`); canceling just drops the session. Re-ranking removes the movie and reinserts it. At most `ceil(log2(n+1))` comparisons.
-- `hooks/use-ranking.ts` drives it; `services/ranking-api.ts` calls the `save_ranking(p_order bigint[])` RPC, which locks the user's rows, validates the full order (complete, no duplicates, only the caller's watched movies), and rewrites all positions atomically. Error code `40001` = list changed elsewhere (hook restarts the session); `22023` = invalid order.
-- Rank position lives on `watched_movies`; there is no separate rankings table.
+**Ranking:** pick a tier (loved / okay / disliked), then binary insertion within that tier's slice of a best-to-worst list.
+- `app/src/ranking/ranking-session.ts` is a pure, immutable step-by-step engine (`startRanking` with `tierBounds` → `nextOpponent`/`choose`/`skip` → `finalOrder`); canceling just drops the session. `skip` asks the nearest unskipped movie instead and lands in the middle when everything left is skipped. Re-ranking removes the movie and reinserts it. At most `ceil(log2(n+1))` comparisons.
+- `hooks/use-ranking.ts` drives it; `services/ranking-api.ts` calls the `save_ranking(p_order bigint[], p_tiers text[])` RPC, which locks the user's rows, validates the full order (complete, no duplicates, only the caller's watched movies, tiers in loved → okay → disliked order), and rewrites all positions and tiers atomically. Error code `40001` = list changed elsewhere (hook restarts the session); `22023` = invalid order.
+- Rank position and tier live on `watched_movies`; there is no separate rankings table. The 0.0–10.0 score is derived in the app (`ranking/score.ts`), never stored.
 - `prototype/` (Python + TS) is the reference implementation, not app code.
 
 **Movie search:** the app never calls TMDB. `services/movie-service.ts` invokes the `search-movies` Edge Function, which checks the user's token, queries TMDB (`/search/movie`, or `/movie/popular` for an empty query), upserts results into `movies` with the admin client (the app has no write access to `movies`), and returns rows with Encore's own `id` in TMDB order. If TMDB fails it falls back to already-saved movies. Pure logic lives in `search.ts`/`tmdb.ts` (Jest-tested, `.ts` import extensions for Deno); `index.ts` holds the Deno/Supabase glue. Details in `docs/movie-search.md`.

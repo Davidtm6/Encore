@@ -1,6 +1,8 @@
 import {
   buildTakes,
+  placementIn,
   placementLabel,
+  type RankedRow,
   rankedUserIds,
   type ReviewRow,
   spokenPlacement,
@@ -27,22 +29,47 @@ const usernames = new Map([
 
 describe('placementLabel', () => {
   it('shows the place and how many films were ranked', () => {
-    expect(placementLabel({ position: 4, outOf: 62 })).toBe('#4 of 62');
+    expect(placementLabel({ position: 4, outOf: 62, score: null })).toBe('#4 of 62');
   });
 
   it('leaves out "of 1" for a list of one', () => {
-    expect(placementLabel({ position: 1, outOf: 1 })).toBe('#1');
+    expect(placementLabel({ position: 1, outOf: 1, score: null })).toBe('#1');
+  });
+});
+
+describe('placement scores (#60)', () => {
+  it('shows and reads out the score after the place', () => {
+    expect(placementLabel({ position: 4, outOf: 62, score: 8.7 })).toBe('#4 of 62 · 8.7');
+    expect(placementLabel({ position: 1, outOf: 1, score: 10 })).toBe('#1 · 10.0');
+    expect(spokenPlacement({ position: 4, outOf: 62, score: 8.7 })).toBe('ranked 4th of 62, score 8.7');
+  });
+
+  it('scores a place from its tier, whatever order the rows come in', () => {
+    const rows: RankedRow[] = [
+      { rank_position: 3, tier: 'okay' },
+      { rank_position: 1, tier: 'loved' },
+      { rank_position: 2, tier: 'loved' },
+    ];
+
+    expect(placementIn(rows, 1)).toEqual({ position: 1, outOf: 3, score: 10 });
+    expect(placementIn(rows, 2)).toEqual({ position: 2, outOf: 3, score: 6.7 });
+    expect(placementIn(rows, 3)).toEqual({ position: 3, outOf: 3, score: 6.6 });
+  });
+
+  it('shows no score when a tier can’t be read, rather than a wrong one', () => {
+    expect(placementIn([{ rank_position: 1, tier: null }], 1)).toEqual({ position: 1, outOf: 1, score: null });
+    expect(placementIn([], 2)).toEqual({ position: 2, outOf: 2, score: null });
   });
 });
 
 describe('spokenPlacement', () => {
   it('reads the place as an ordinal', () => {
-    expect(spokenPlacement({ position: 1, outOf: 3 })).toBe('ranked 1st of 3');
-    expect(spokenPlacement({ position: 2, outOf: 3 })).toBe('ranked 2nd of 3');
-    expect(spokenPlacement({ position: 3, outOf: 30 })).toBe('ranked 3rd of 30');
-    expect(spokenPlacement({ position: 11, outOf: 30 })).toBe('ranked 11th of 30');
-    expect(spokenPlacement({ position: 22, outOf: 30 })).toBe('ranked 22nd of 30');
-    expect(spokenPlacement({ position: 1, outOf: 1 })).toBe('ranked 1st');
+    expect(spokenPlacement({ position: 1, outOf: 3, score: null })).toBe('ranked 1st of 3');
+    expect(spokenPlacement({ position: 2, outOf: 3, score: null })).toBe('ranked 2nd of 3');
+    expect(spokenPlacement({ position: 3, outOf: 30, score: null })).toBe('ranked 3rd of 30');
+    expect(spokenPlacement({ position: 11, outOf: 30, score: null })).toBe('ranked 11th of 30');
+    expect(spokenPlacement({ position: 22, outOf: 30, score: null })).toBe('ranked 22nd of 30');
+    expect(spokenPlacement({ position: 1, outOf: 1, score: null })).toBe('ranked 1st');
   });
 });
 
@@ -61,10 +88,13 @@ describe('rankedUserIds and userIdsOnPage', () => {
 });
 
 describe('buildTakes', () => {
-  const rankedCounts = new Map([
-    ['me', 20],
-    ['f1', 62],
-    ['f2', 8],
+  /** A ranking of `size` films, all in one tier. */
+  const ranking = (size: number, tier = 'okay'): RankedRow[] =>
+    Array.from({ length: size }, (_, i) => ({ rank_position: i + 1, tier }));
+  const rankings = new Map([
+    ['me', [...ranking(5, 'loved'), ...ranking(15).map((r) => ({ ...r, rank_position: r.rank_position + 5 }))]],
+    ['f1', ranking(62)],
+    ['f2', ranking(8, 'loved')],
   ]);
 
   it('sorts rows into your take, friends, and other people’s public reviews', () => {
@@ -77,20 +107,20 @@ describe('buildTakes', () => {
         review('s2', 'Newer public.', '2026-11-05T00:00:00Z', 'public'),
       ],
       watched: [watched('me', 3), watched('f1', 4), watched('f2', 1), watched('f3', null)],
-      rankedCounts,
+      rankings,
       usernames,
     });
 
     expect(takes.mine).toEqual({
       userId: 'me',
       username: 'alex',
-      placement: { position: 3, outOf: 20 },
+      placement: { position: 3, outOf: 20, score: 8.4 },
       review: { body: 'Mine.', visibility: 'public', updatedAt: '2026-11-03T00:00:00Z' },
     });
     // Best-placed first; the friend who hasn't ranked it comes last.
     expect(takes.friends.map((t) => [t.username, t.placement && placementLabel(t.placement), t.review?.body])).toEqual([
-      ['Cam', '#1 of 8', undefined],
-      ['bea', '#4 of 62', 'Friend review.'],
+      ['Cam', '#1 of 8 · 10.0', undefined],
+      ['bea', '#4 of 62 · 6.4', 'Friend review.'],
       ['ada', null, undefined],
     ]);
     // Non-friends never get a placement, since their rankings aren't visible.
@@ -105,7 +135,7 @@ describe('buildTakes', () => {
       myId: 'me',
       reviews: [review('s1', 'Public.', undefined, 'public')],
       watched: [],
-      rankedCounts: new Map(),
+      rankings: new Map(),
       usernames,
     });
 
@@ -119,7 +149,7 @@ describe('buildTakes', () => {
       myId: 'me',
       reviews: [],
       watched: [watched('f1', null), watched('zz', null), watched('f3', null)],
-      rankedCounts: new Map(),
+      rankings: new Map(),
       usernames,
     });
 
@@ -131,7 +161,7 @@ describe('buildTakes', () => {
       myId: 'me',
       reviews: [review('me', 'Mine.', undefined, 'weird')],
       watched: [watched('me', null)],
-      rankedCounts: new Map(),
+      rankings: new Map(),
       usernames,
     });
 

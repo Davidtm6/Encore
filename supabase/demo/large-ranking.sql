@@ -7,7 +7,8 @@
 -- It ranks up to list_size of the films already saved in public.movies (the
 -- 50 starter films plus everything anyone has searched), in a shuffled but
 -- repeatable order. If fewer films are saved, it ranks them all and says so;
--- searching in the app saves more.
+-- searching in the app saves more. The list is split into thirds by tier
+-- (#60): the top third loved, the middle okay, the bottom disliked.
 
 do $$
 declare
@@ -24,13 +25,23 @@ begin
   -- Reviews cascade from watched_movies.
   delete from public.watched_movies where user_id = large_id;
 
-  insert into public.watched_movies (user_id, movie_id, rank_position)
-  select large_id, id, row_number() over (order by md5(id::text))
+  insert into public.watched_movies (user_id, movie_id, rank_position, tier)
+  select large_id, id, place,
+    case
+      when place <= ceil(total / 3.0) then 'loved'
+      when place <= ceil(2 * total / 3.0) then 'okay'
+      else 'disliked'
+    end
   from (
-    select id from public.movies
-    order by md5(id::text)
-    limit list_size
-  ) chosen;
+    select id,
+      row_number() over (order by md5(id::text)) as place,
+      count(*) over () as total
+    from (
+      select id from public.movies
+      order by md5(id::text)
+      limit list_size
+    ) chosen
+  ) numbered;
 
   get diagnostics ranked = row_count;
   if ranked < list_size then

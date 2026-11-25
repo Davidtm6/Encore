@@ -72,7 +72,8 @@ read -s TMDB_READ_ACCESS_TOKEN && export TMDB_READ_ACCESS_TOKEN && npm test -- t
 
 | Suite | Covers |
 | --- | --- |
-| `app/src/ranking/ranking-session.test.ts` | The ranking engine used by the Rank screen: first movie, every insertion position for lists of 0–128 films within `ceil(log2(n + 1))` comparisons, and for 200, 500, and 1,000 films within `floor` to `ceil` of `log2(n + 1)`; the recorded counts in [Ranking large lists](#ranking-large-lists); cancel leaving the list unchanged, re-rank keeping other movies in order, the "Question 2 of up to 4" count never promising too few, undoing an answer, and the films above and below the new place |
+| `app/src/ranking/ranking-session.test.ts` | The ranking engine used by the Rank screen: first movie, every insertion position for lists of 0–128 films within `ceil(log2(n + 1))` comparisons, and for 200, 500, and 1,000 films within `floor` to `ceil` of `log2(n + 1)`; the recorded counts in [Ranking large lists](#ranking-large-lists), including within one tier of a 999-film list; cancel leaving the list unchanged, re-rank keeping other movies in order, the "Question 2 of up to 4" count never promising too few, undoing an answer, and the films above and below the new place; tiers (comparisons and the final place stay in the chosen tier, an empty tier needs none) and skips (never the same movie twice, landing in the middle when everything is skipped, at most one place off after a skip, the progress bar still only moving forward) |
+| `app/src/ranking/score.test.ts` | The 0.0–10.0 scores: each tier's band edges, a tier of one, scores never rising further down any mix of tiers, every loved movie above every okay one |
 | `app/src/services/auth-validation.test.ts` | The sign-in and sign-up form rules, and that every invalid field is reported at once |
 | `app/src/services/friends.test.ts` | Sorting your adds into friends, "Added you", and "Waiting for them to add you back"; naming a relation; and building a safe username search pattern |
 | `app/src/services/comments.test.ts` | Comments: the length limit, who can edit or delete, spotting an edited comment, counting comments per review, and the comments button's label |
@@ -90,6 +91,7 @@ read -s TMDB_READ_ACCESS_TOKEN && export TMDB_READ_ACCESS_TOKEN && npm test -- t
 | `supabase/tests/database/review-comments.test.sql` | Comments: friends can comment on friends-only reviews and anyone on public ones; strangers can neither see nor write comments on friends-only reviews; only the author can edit or delete (not even the review's author), and a comment can't be moved; when a public review goes friends-only, its comments stay readable by the author and friends, and a stranger who commented can't add more but still sees their own; deleting the review deletes its comments |
 | `supabase/tests/database/review-visibility.test.sql` | Who can read a review: friends-only by default, readable by the author and mutual friends; public reviews by everyone signed in; a one-way add or a removed friend sees only public reviews; only the author can change visibility; `is_friend` |
 | `supabase/tests/database/friends.test.sql` | Friends: a one-way add shows nothing, mutual adds show each other's list, ranking, and reviews, friends can't change each other's lists, `save_ranking` ignores a friend's visible films, strangers and signed-out users see nothing, and removing a friend hides the list again |
+| `supabase/tests/database/ranking-tiers.test.sql` | Tiers: old rankings split into thirds (lists of 1, 2, 3, and 7), a ranked film always having a valid tier and an unranked one none, `save_ranking` saving tiers and rejecting out-of-order, missing, unknown, or too few tiers, the old one-argument version being gone, and removals keeping tiers |
 | `supabase/tests/database/remove-watched.test.sql` | Removing a movie from the watched list: the ranking closes up (including several removals at once), the review goes too, and nobody can remove another user's movies |
 | `supabase/tests/database/large-ranking.test.sql` | `save_ranking` with 1,000 films: the first save, adding a film at #1 (every other film moves down), and reversing the whole list, each correct and under 5 seconds; the times show in the output |
 | `supabase/tests/database/movie-rating.test.sql` | The TMDB score columns: kept to 0–10 and one decimal place, empty for starter films, readable but not writable by signed-in users |
@@ -104,7 +106,7 @@ Each suite was checked by breaking the code on purpose and confirming a test fai
 
 How many comparisons ranking takes as a list grows (#64). The numbers come from the engine itself and are checked by the "large lists" tests in `ranking-session.test.ts`, so they stay true if the engine changes.
 
-**Placing one more film** in a list of n films:
+**Placing one more film** in a list of n films, comparing against the whole list (as when every film shares one tier):
 
 | Films ranked | At #1 | At the bottom | In the middle | Average over every place | Range |
 | --- | --- | --- | --- | --- | --- |
@@ -124,10 +126,20 @@ How many comparisons ranking takes as a list grows (#64). The numbers come from 
 
 **Saving:** `save_ranking` rewrites every position on each save. `large-ranking.test.sql` saves 1,000 films, adds one at #1, and reverses all 1,001; each save must finish in under 5 seconds, and CI's output lists the actual times.
 
+**With tiers (#60).** The Rank screen first asks Loved it / It was okay / Didn't like it, and then compares only within that tier. With a list split evenly into thirds, that's one tier question plus:
+
+| Films ranked | Films in the tier | Comparisons within the tier |
+| --- | --- | --- |
+| 100 | about 33 | 5–6 |
+| 200 | about 67 | 6–7 |
+| 500 | about 167 | 7–8 |
+| 1,000 | about 333 | 8–9 (checked for 999 films in `ranking-session.test.ts`) |
+
 **What this means for Risk 2 (comparison fatigue):**
-- Adding a film stays cheap however long the list gets: at most 10 questions at 1,000 films, against 7 at 100. Long lists alone don't call for "skip" / "too close to call" (#43) or for asking "Loved it / Okay / Didn't like it" first (#60).
-- The cost is building a big list in the first place: someone importing 100 films faces 480–573 questions. That's where #60 would help most, since a first answer of "Didn't like it" removes the top of the list from the search. The planned matchup rate limit (#14, 100 per hour) would also stop that person partway through their 27th to 32nd film, so its number should be revisited before it's built.
-- Not yet checked by hand: scrolling and ranking in the app with a list of 200 or more. `supabase/demo/large-ranking.sql` sets that up; see [Prepare a demo account](setup.md#4-prepare-a-demo-account).
+- Adding a film stays cheap however long the list gets: at most 10 comparisons at 1,000 films, and about one fewer with tiers, since the tier question cuts the list to a third.
+- The cost is building a big list in the first place: someone importing 100 films faces 480–573 comparisons without tiers. Tiers save roughly 1.6 comparisons per film once the list is long, and "Too close to call? Skip" (#43) helps with hard pairs, but a big import still means hundreds of questions.
+- The planned matchup rate limit (#14, 100 per hour) would stop someone building a list from nothing partway through their 27th to 32nd film without tiers, a little later with them. Its number should be revisited before it's built.
+- Not yet checked by hand: scrolling and ranking in the app with a list of 200 or more. `supabase/demo/large-ranking.sql` sets that up, split into thirds by tier; see [Prepare a demo account](setup.md#4-prepare-a-demo-account).
 
 ## Add a test
 

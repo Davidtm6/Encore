@@ -85,6 +85,7 @@ function FriendMovieRow({ item }: { item: WatchedMovie }) {
     <MovieCard
       movie={movie}
       rank={rankPosition ?? undefined}
+      score={item.score}
       note={review ? 'Reviewed' : undefined}
       onPress={() => router.push({ pathname: '/movie/[movieId]', params: { movieId: String(movie.id) } })}
       accessibilityHint="Opens the movie’s page with your and your friends’ ranks and reviews">

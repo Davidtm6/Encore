@@ -1,7 +1,8 @@
 -- Ranking with 1,000 films (#64). save_ranking rewrites every position on each
 -- save, so check it stays correct and fast for a list far longer than the
 -- team's own: a first save, adding one more film at #1 (which moves every
--- other film down), and reversing the whole list.
+-- other film down), and reversing the whole list. Every film is 'loved', so
+-- any order is a valid tier order (tiers have their own test).
 
 -- 1,001 films, beyond the starter catalog. Only the database owner can add movies.
 insert into public.movies (provider, provider_movie_id, title)
@@ -29,7 +30,7 @@ do $$
 declare
   started timestamptz := clock_timestamp();
 begin
-  perform public.save_ranking((select ids from first_order));
+  perform public.save_ranking((select ids from first_order), array_fill('loved'::text, array[1000]));
   insert into timing values ('first save', clock_timestamp() - started);
 end;
 $$;
@@ -49,7 +50,8 @@ declare
 begin
   perform public.save_ranking(
     (select array_prepend(m.id, f.ids) from public.movies m, first_order f
-     where m.provider = 'test' and m.provider_movie_id = '1001'));
+     where m.provider = 'test' and m.provider_movie_id = '1001'),
+    array_fill('loved'::text, array[1001]));
   insert into timing values ('add at #1', clock_timestamp() - started);
 end;
 $$;
@@ -65,7 +67,8 @@ declare
   started timestamptz := clock_timestamp();
 begin
   perform public.save_ranking(
-    (select array_agg(w.movie_id order by w.rank_position desc) from public.watched_movies w));
+    (select array_agg(w.movie_id order by w.rank_position desc) from public.watched_movies w),
+    array_fill('loved'::text, array[1001]));
   insert into timing values ('reverse', clock_timestamp() - started);
 end;
 $$;
