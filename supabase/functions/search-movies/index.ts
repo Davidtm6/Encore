@@ -18,7 +18,7 @@ import { fillDirectors, readDirectorIds } from './credits.ts';
 import { readQuery, searchMovies } from './search.ts';
 import { escapeLike } from './tmdb.ts';
 
-const MOVIE_FIELDS = 'id, title, release_year, poster_url, director';
+const MOVIE_FIELDS = 'id, title, release_year, poster_url, director, vote_average, vote_count';
 const TMDB_TIMEOUT_MS = 5000;
 
 export default {

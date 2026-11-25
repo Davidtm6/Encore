@@ -7,12 +7,15 @@ import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import type { Movie } from '@/services/movie-service';
+import type { RatingText } from '@/services/tmdb-rating';
 
 type MovieCardProps = {
   movie: Movie;
   /** Shown in a circle on the right for ranked movies. */
   rank?: number;
   note?: string;
+  /** TMDB's audience score, shown after the year and director (search results only, #85). */
+  rating?: RatingText | null;
   /** A line or two that tells similar films apart, such as the start of the plot. */
   description?: string | null;
   /** Briefly marks a row, for example the movie that was just ranked. */
@@ -30,6 +33,7 @@ export function MovieCard({
   movie,
   rank,
   note,
+  rating,
   description,
   highlighted = false,
   onPress,
@@ -38,8 +42,8 @@ export function MovieCard({
 }: MovieCardProps) {
   const theme = useTheme();
   // The director helps tell similar films apart (#61); it's left out when unknown.
-  const details = [movie.release_year, movie.director, note].filter(Boolean).join(' · ');
-  const spokenDetails = [movie.release_year, movie.director && `directed by ${movie.director}`, note]
+  const details = [movie.release_year, movie.director, rating?.label, note].filter(Boolean).join(' · ');
+  const spokenDetails = [movie.release_year, movie.director && `directed by ${movie.director}`, rating?.spoken, note]
     .filter(Boolean)
     .join(', ');
 

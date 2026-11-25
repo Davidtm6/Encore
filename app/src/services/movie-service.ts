@@ -6,8 +6,17 @@ import type { Tables } from '@/types/database';
 /** `director` is null until it's looked up (see lookUpDirectors), or when TMDB has none. */
 export type Movie = Pick<Tables<'movies'>, 'id' | 'title' | 'release_year' | 'poster_url' | 'director'>;
 
-/** A search result: a movie plus the start of TMDB's plot summary, when TMDB answered. */
-export type SearchResult = Movie & { overview?: string | null };
+/**
+ * A search result: a movie plus the start of TMDB's plot summary, when TMDB
+ * answered, and TMDB's audience score (#85). The score is only shown in
+ * search, so it isn't part of MOVIE_FIELDS: on My List it could pull people's
+ * own rankings toward the crowd's.
+ */
+export type SearchResult = Movie & {
+  overview?: string | null;
+  vote_average?: number | null;
+  vote_count?: number | null;
+};
 
 export const MOVIE_FIELDS = 'id, title, release_year, poster_url, director';
 
