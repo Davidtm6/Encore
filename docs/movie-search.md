@@ -19,7 +19,7 @@ Search screen ──invoke('search-movies')──► Edge Function ──GET─�
    - `/search/movie` for a query, with adult results excluded;
    - `/movie/popular` when the query is empty.
 
-   If a query finds nothing, it looks for near matches; see [Misspelled searches](#misspelled-searches).
+   If a query finds nothing, it looks for near matches; see [Misspelled searches](#misspelled-searches). At the same time it checks whether the query is an actor's or director's name; see [Actors and directors](#actors-and-directors).
 3. It turns TMDB's results into `movies` rows and upserts them. The rows are keyed by `(provider, provider_movie_id)` = `('tmdb', <TMDB id>)`, so each film is stored once, and a repeat search refreshes its title, year, and poster.
 4. It returns the saved rows, with Encore's own `id`, in TMDB's order. The app needs that `id` to mark a movie watched, rank it, or review it.
 
@@ -45,6 +45,7 @@ The same function also fills in each film's director; see [Directors](#directors
 | `supabase/functions/search-movies/search.ts` | The search logic: reading the query, building the TMDB URL, saving, ordering, and the fallback. It has no Deno or Supabase code, so Jest tests it. |
 | `supabase/functions/search-movies/tmdb.ts` | Turning TMDB results into `movies` rows |
 | `supabase/functions/search-movies/credits.ts` | Directors: the credits URL, picking the director out of TMDB's credits, and filling in missing ones |
+| `supabase/functions/search-movies/people.ts` | Actor and director search: the person-search and credits URLs, whether TMDB's best match is the person the query names, and picking their films |
 | `supabase/functions/search-movies/typo.ts` | Near matches for a misspelled query: the looser queries to try, and which titles are close enough to suggest |
 | `supabase/config.toml` (`[functions.search-movies]`) | The function's settings, including `verify_jwt` |
 | `supabase/migrations/20261119000000_movie_director.sql` | Added the `director` column |
@@ -64,6 +65,7 @@ The same function also fills in each film's director; see [Directors](#directors
 | --- | --- | --- |
 | 200 | `{ "movies": [{ "id", "title", "release_year", "poster_url", "director", "vote_average", "vote_count", "overview" }] }` | Normal results, in TMDB's order. `release_year`, `poster_url`, `director`, `vote_average`, `vote_count`, and `overview` can be `null`. `vote_average` and `vote_count` are TMDB's audience score and its number of votes; see [How movies are stored](#how-movies-are-stored). `director` is whatever is already saved; search never looks it up (see [Directors](#directors)). `overview` is the start of TMDB's plot summary (up to 200 characters, cut at a word), which the Search screen shows to tell same-titled films apart. It's passed through from TMDB and not stored, so fallback results don't have it. |
 | 200 | `{ "movies": [], "suggestions": [...] }` | The query found nothing, but some titles are close to it. `suggestions` has the same shape as `movies`, nearest first, at most 5. The Search screen lists them under "Did you mean". The key is left out when there are none. |
+| 200 | `{ "movies": [...], "person": { "name", "role", "movies": [...] } }` | The query is an actor's or director's name. `role` is `"actor"` or `"director"`, and `person.movies` (same shape as `movies`, at most 20, most-voted first) are the films they acted in or directed. `movies` still has the title matches, which may be empty. The Search screen lists the person's films after the title matches under "Films with …" or "Films by …". The key is left out when the query isn't a name or the lookup fails; there are no `suggestions` when it's present. |
 | 200 | `{ "movies": [...], "fromSaved": true }` from saved movies | TMDB failed; see below. The Search screen says that live search isn't available and that these results have no plot summaries. |
 | 401 | An auth error | No valid signed-in token. The app shows "Your session expired." |
 | 502 | `{ "error": "Search isn’t available right now. Try again." }` | TMDB and the fallback both failed |
@@ -81,6 +83,20 @@ TMDB's search results have no director. It comes from a film's credits (`/movie/
 - **A failed lookup is quiet.** The list shows without the director, and it's tried again next time.
 
 The 50 starter films have no director in `seed.sql` or the migrations; they get one the same way, once they're on someone's list. That keeps `starter-catalog.test.ts` and the demo script unchanged.
+
+## Actors and directors
+
+Searching a person's name, like "nolan" or "tom hanks," also lists their films (#81). For any non-empty query, alongside the title search, the function:
+1. Asks TMDB's `/search/person` for the query and takes only its best match.
+2. Accepts that person only if every word typed starts a word of their name (ignoring case, accents, and punctuation), the query is at least 3 letters, and TMDB says they're known for acting or directing. So "chris nolan" finds Christopher Nolan, but "the dark knight" doesn't pull up someone whose name happens to contain "dark."
+3. Asks `/person/{id}/movie_credits` for their films: the cast list for an actor, or the crew entries with the job "Director" for a director. It keeps the 20 with the most votes, so the best-known come first, and saves them like any other result.
+
+That's 1 extra TMDB call per search, and 2 when the query is a name. A failure in the person lookup never fails the search: the title matches come back on their own, and nothing is logged for a TMDB error since the title search reports those. Nothing runs for the popular list or while the fallback is running.
+
+Limits:
+- **Only one person per search.** "nolan" finds Christopher Nolan, not Jonathan Nolan, because TMDB ranks him first.
+- **Someone known for both** is treated as whatever TMDB says they're known for. Searching "Clint Eastwood" lists the films he acted in, not every one he directed.
+- **A misspelled name finds nothing,** since there are no near matches for people.
 
 ## Misspelled searches
 
@@ -122,7 +138,7 @@ The function tries to keep search working:
 
 The app says when the fallback is running: above the results it shows "Live search isn’t available right now, so these are only movies already saved in Encore, without plot summaries." The reason is in the logs, described below.
 
-A failure while looking for near matches never fails the search; the user just gets "No movies match" without suggestions.
+A failure while looking for near matches never fails the search; the user just gets "No movies match" without suggestions. The same goes for the actor and director lookup: the title matches show without the person's films.
 
 ## Running it
 
@@ -166,13 +182,14 @@ The About screen (`app/src/app/about.tsx`, opened from My List) covers all three
 
 | Test | What it checks |
 | --- | --- |
-| `supabase/functions/search-movies/search.test.ts` | The function's logic with fake TMDB and database calls: the query, the URL, saving and ordering, and every fallback |
+| `supabase/functions/search-movies/search.test.ts` | The function's logic with fake TMDB and database calls: the query, the URL, saving and ordering, a person's films, and every fallback |
 | `supabase/functions/search-movies/tmdb.test.ts` | How TMDB results become rows, including the score and vote count |
 | `app/src/services/tmdb-rating.test.ts` | How the score is shown, and hiding it under 10 votes |
 | `supabase/tests/database/movie-rating.test.sql` | The score columns: 0–10 and one decimal place, readable but not writable by users |
 | `supabase/functions/search-movies/credits.test.ts` | Picking the director out of a credits response (none, one, several), reading a director request, and filling in only the missing directors |
+| `supabase/functions/search-movies/people.test.ts` | Which person a query names (last name, partial names, accents, short queries, other jobs) and picking an actor's or director's films |
 | `supabase/functions/search-movies/typo.test.ts` | The looser queries for a misspelled search, and which titles are close enough to suggest |
-| `supabase/functions/search-movies/tmdb-contract.test.ts` | That TMDB's live search and credits responses still have the fields we read. It skips without `TMDB_READ_ACCESS_TOKEN` |
+| `supabase/functions/search-movies/tmdb-contract.test.ts` | That TMDB's live search, credits, person search, and person credits responses still have the fields we read. It skips without `TMDB_READ_ACCESS_TOKEN` |
 | `supabase/tests/database/movie-director.test.sql` | That signed-in users can read the director but not change it |
 | `app/src/services/search-error.test.ts` | The error messages Search shows |
 | `supabase/tests/starter-catalog.test.ts` | That the seed, both TMDB migrations, and the demo script agree on the same 50 films and posters |
@@ -185,10 +202,11 @@ Run them with `npm test`, `npm run test:db`, and `npm run check:functions`; CI r
 What the tests can't check is the deployed function talking to the real TMDB and the real database. After deploying, check by hand in Expo Go:
 1. Search for "parasite": the results show posters and a plot line under each title.
 2. Search for "intersteller": Interstellar appears under "Did you mean".
-3. Clear the search box: "Popular right now" appears.
-4. Mark a new result watched, then open My List: its director appears after the year (for "parasite", "2019 · Bong Joon Ho").
-5. Mark a new result watched, then rank and review it.
-6. Open My List → **About**: the logo and notice show.
+3. Search for "christopher nolan": "Films by Christopher Nolan" lists Inception and his other films under any title matches. Search for "tom hanks": "Films with Tom Hanks" appears.
+4. Clear the search box: "Popular right now" appears.
+5. Mark a new result watched, then open My List: its director appears after the year (for "parasite", "2019 · Bong Joon Ho").
+6. Mark a new result watched, then rank and review it.
+7. Open My List → **About**: the logo and notice show.
 
 ## Changing it
 

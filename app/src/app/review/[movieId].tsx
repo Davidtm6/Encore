@@ -1,4 +1,4 @@
-import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { Stack, useLocalSearchParams } from 'expo-router';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -17,6 +17,7 @@ import { VisibilityPicker } from '@/components/visibility-picker';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useReview } from '@/hooks/use-review';
 import { useTheme } from '@/hooks/use-theme';
+import { closeScreen } from '@/navigation/close-screen';
 import { REVIEW_MAX_LENGTH } from '@/services/review-service';
 
 export default function ReviewScreen() {
@@ -27,7 +28,7 @@ export default function ReviewScreen() {
 
   async function save() {
     if (await review.save()) {
-      router.back();
+      closeScreen();
     }
   }
 
@@ -63,7 +64,7 @@ export default function ReviewScreen() {
               </ThemedText>
               <VisibilityPicker value={review.visibility} onChange={review.setVisibility} disabled={review.saving} />
               <Button label="Save review" onPress={save} busy={review.saving} />
-              <Button label="Cancel" variant="plain" onPress={() => router.back()} disabled={review.saving} />
+              <Button label="Cancel" variant="plain" onPress={closeScreen} disabled={review.saving} />
             </>
           )}
         </ScrollView>

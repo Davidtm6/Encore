@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { AccessibilityInfo, ActivityIndicator, Alert, FlatList, StyleSheet, TextInput, View } from 'react-native';
+import { AccessibilityInfo, ActivityIndicator, Alert, SectionList, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/button';
@@ -26,10 +26,21 @@ function openRank(movie: Movie) {
 
 export default function SearchScreen() {
   const theme = useTheme();
-  const { query, setQuery, results, suggestions, fromSaved, searchedQuery, loading, error, retry } = useMovieSearch();
+  const { query, setQuery, results, suggestions, fromSaved, person, searchedQuery, loading, error, retry } =
+    useMovieSearch();
   // A search that found nothing lists its near matches instead.
   const didYouMean = results.length === 0 && suggestions.length > 0;
   const shown = didYouMean ? suggestions : results;
+  // Title matches first, then the films of the actor or director the query names (#81).
+  const sections: { key: string; title: string | null; data: SearchResult[] }[] = [];
+  if (shown.length > 0) {
+    sections.push({ key: 'titles', title: null, data: shown });
+  }
+  if (person) {
+    const title = `${person.role === 'director' ? 'Films by' : 'Films with'} ${person.name}`;
+    sections.push({ key: 'person', title, data: person.movies });
+  }
+  const showing = shown.length + (person?.movies.length ?? 0);
   const { ranked, watchedIds, reload } = useMyMovies();
   const rankedIds = new Set(ranked.map((m) => m.movie.id));
   const [adding, setAdding] = useState<number | null>(null);
@@ -181,9 +192,9 @@ export default function SearchScreen() {
         </ThemedText>
         <TextInput
           style={[styles.input, { color: theme.text, backgroundColor: theme.backgroundElement }]}
-          placeholder="Search by title"
+          placeholder="Title, actor, or director"
           placeholderTextColor={theme.textSecondary}
-          accessibilityLabel="Search movies by title"
+          accessibilityLabel="Search movies by title, actor, or director"
           autoCorrect={false}
           clearButtonMode="while-editing"
           returnKeyType="search"
@@ -191,13 +202,25 @@ export default function SearchScreen() {
           onChangeText={setQuery}
         />
         {error && <ErrorBanner message={error} onRetry={retry} />}
-        <FlatList
-          data={shown}
+        <SectionList
+          sections={sections}
           keyExtractor={(movie) => String(movie.id)}
           renderItem={renderMovie}
+          renderSectionHeader={({ section }) =>
+            section.title ? (
+              <ThemedText
+                type="smallBold"
+                themeColor="textSecondary"
+                style={[styles.sectionTitle, styles.personTitle]}
+                accessibilityRole="header">
+                {section.title}
+              </ThemedText>
+            ) : null
+          }
+          stickySectionHeadersEnabled={false}
           ItemSeparatorComponent={ListSeparator}
           // The last results stay up, dimmed, while the next search loads.
-          style={loading && shown.length > 0 ? styles.stale : undefined}
+          style={loading && showing > 0 ? styles.stale : undefined}
           ListHeaderComponent={
             <View style={styles.header}>
               {loading && (
@@ -233,7 +256,7 @@ export default function SearchScreen() {
               <View style={styles.empty}>
                 <ThemedText themeColor="textSecondary">No movies match “{searchedQuery}”.</ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">
-                  Check the spelling, or try fewer or different words from the title.
+                  Check the spelling, or try fewer or different words from the title or a person’s name.
                 </ThemedText>
                 <Button label="Clear search" variant="secondary" size="small" onPress={() => setQuery('')} />
               </View>
@@ -264,6 +287,9 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.one,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
+  },
+  personTitle: {
+    paddingTop: Spacing.four,
   },
   title: {
     paddingTop: Spacing.two,

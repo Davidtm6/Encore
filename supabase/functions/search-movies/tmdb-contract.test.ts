@@ -1,4 +1,5 @@
 import { creditsUrl, directorName } from './credits.ts';
+import { matchingPerson, personFilms, personFilmsUrl, personSearchUrl } from './people.ts';
 import { tmdbResults, tmdbUrl } from './search.ts';
 import { toMovieRows } from './tmdb.ts';
 const token = process.env.TMDB_READ_ACCESS_TOKEN;
@@ -39,5 +40,23 @@ describeWithToken('TMDB search response', () => {
       expect.arrayContaining([expect.objectContaining({ job: 'Director', name: expect.any(String) })]),
     );
     expect(directorName(credits)).toBe('Bong Joon Ho');
+  }, 15000);
+
+  it('still returns the person fields the actor and director search reads', async () => {
+    const get = async (url: string) => {
+      const response = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}`, accept: 'application/json' },
+        signal: AbortSignal.timeout(10000),
+      });
+      expect(response.status).toBe(200);
+      return response.json();
+    };
+
+    const person = matchingPerson('christopher nolan', await get(personSearchUrl('christopher nolan')));
+    expect(person).toEqual({ id: 525, name: 'Christopher Nolan', role: 'director' });
+
+    const films = personFilms('director', await get(personFilmsUrl(525)));
+    expect(films.map((film) => film.id)).toContain(27205);
+    expect(films[0]).toEqual(expect.objectContaining({ title: expect.any(String), vote_count: expect.any(Number) }));
   }, 15000);
 });
