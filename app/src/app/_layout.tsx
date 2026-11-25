@@ -35,7 +35,10 @@ export default function RootLayout() {
 }
 
 function RootStack() {
-  const { session, loading } = useSession();
+  const { session, loading, recovering } = useSession();
+  // A reset code signs the person in, but they stay on the reset screen until
+  // the new password is saved; then they move to My List.
+  const signedIn = !!session && !recovering;
 
   useEffect(() => {
     if (!loading) {
@@ -48,10 +51,11 @@ function RootStack() {
   }
   return (
     <Stack>
-      <Stack.Protected guard={!session}>
-        <Stack.Screen name="sign-in" options={{ headerShown: false }} />
+      <Stack.Protected guard={!signedIn}>
+        <Stack.Screen name="sign-in" options={{ headerShown: false, title: 'Sign in' }} />
+        <Stack.Screen name="forgot-password" options={{ title: 'Reset password' }} />
       </Stack.Protected>
-      <Stack.Protected guard={!!session}>
+      <Stack.Protected guard={signedIn}>
         {/* The title is what screen readers call the back arrow on the screens below: "Encore, back". */}
         <Stack.Screen name="(tabs)" options={{ headerShown: false, title: 'Encore' }} />
         <Stack.Screen name="rank/[movieId]" options={{ presentation: 'modal', title: 'Rank' }} />

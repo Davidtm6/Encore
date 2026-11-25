@@ -1,6 +1,7 @@
 import type { AuthError } from '@supabase/supabase-js';
 
 import { userError } from '@/services/errors';
+import { resetError } from '@/services/password-reset';
 import { supabase } from '@/services/supabase';
 
 /** Creates the account. Returns false when the project requires email confirmation before sign-in. */
@@ -23,6 +24,36 @@ export async function signOut(): Promise<void> {
   const { error } = await supabase.auth.signOut();
   if (error) {
     throw authError(error);
+  }
+}
+
+/**
+ * Emails a password-reset code. Supabase reports success even when no account
+ * uses the address, so the app can't be used to find out who has an account.
+ */
+export async function sendPasswordResetCode(email: string): Promise<void> {
+  const { error } = await supabase.auth.resetPasswordForEmail(email);
+  if (error) {
+    throw resetError(error);
+  }
+}
+
+/**
+ * Checks the emailed code. A correct code signs the person in for the reset
+ * (PASSWORD_RECOVERY), and each code works once.
+ */
+export async function verifyPasswordResetCode(email: string, code: string): Promise<void> {
+  const { error } = await supabase.auth.verifyOtp({ email, token: code, type: 'recovery' });
+  if (error) {
+    throw resetError(error);
+  }
+}
+
+/** Saves a new password for the signed-in account, which finishes a reset. */
+export async function setNewPassword(password: string): Promise<void> {
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) {
+    throw resetError(error);
   }
 }
 

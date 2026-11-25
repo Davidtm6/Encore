@@ -12,7 +12,7 @@ The MVP is four features: accounts, finding and logging movies, ranking and re-r
 
 | Use case | Status | What works | Components it touches |
 | --- | --- | --- | --- |
-| **UC1:** Create an account | Operational | Sign up with email, username, and password; sign in; sign out. The session survives app restarts. | App → Supabase Auth → Postgres (a trigger creates the profile) |
+| **UC1:** Create an account | Operational | Sign up with email, username, and password; sign in; sign out. The session survives app restarts. **Forgot password?** emails a code for choosing a new password. | App → Supabase Auth → Postgres (a trigger creates the profile) |
 | **UC2:** Find and log a movie | Operational | Search TMDB by title (with posters and a line of plot to tell similar films apart) or browse popular films, then mark one watched. A misspelled title gets "Did you mean" suggestions. Undo it right away, or remove a movie from My List later. If TMDB is down, search falls back to films already saved. | App → Supabase Auth (login token) → `search-movies` Edge Function → TMDB → Postgres (saves the results); then App → Postgres (`watched_movies`, RLS) |
 | **UC3:** Rank a watched movie | Operational | Pick between two films until the new one has a place; the first film goes straight to #1. The screen counts the questions, Undo takes back the last answer, and the result shows the films above and below before you save. Leaving without saving asks first, whichever way you leave, and leaves the list unchanged. The whole order saves atomically. | App (ranking engine) → Postgres (`save_ranking` function, RLS) |
 | **UC4:** Re-rank a movie | Operational | Re-rank any ranked film through the same comparisons; other films keep their order. If the list changed elsewhere, the app starts over instead of saving a stale order. | App (ranking engine) → Postgres (`save_ranking` function, RLS) |
@@ -21,7 +21,7 @@ The MVP is four features: accounts, finding and logging movies, ranking and re-r
 **UC2 touches every major component:** the app, Supabase Auth, the `search-movies` Edge Function, TMDB, and the Postgres database (see [Architecture](#architecture)).
 
 Not built yet, planned before the tester release:
-- Required email verification and password reset (UC1).
+- Required email verification, and an SMTP server so reset codes reach every address (UC1).
 - The 100-matchups-per-hour limit (UC3, UC4) and the review content filter (UC5).
 - The Encore API server (`server/`); see [Architecture](#architecture).
 - EAS builds for TestFlight and Google Play internal testing.
@@ -92,7 +92,7 @@ Then open the app:
 
 `app/.env.development` already points at the team's Supabase project, so there is nothing to configure. On a home network, `npm run start:lan` reloads faster than the tunnel.
 
-To try it, sign up with any email address and a username; you're signed in right away, since email verification is off on the development project. There's no password reset yet, so if you mistype something, sign up again with a different email. Then follow the use cases above: search for a film, mark it watched, rank it, rank a second one, and write a review.
+To try it, sign up with any email address and a username; you're signed in right away, since email verification is off on the development project. If you forget your password, **Forgot password?** on the sign-in screen emails you a code. Until the project has its own email server, codes only reach members of the team's Supabase organization (see [Password reset emails](docs/setup.md#password-reset-emails)); anyone else can sign up again with a different email. Then follow the use cases above: search for a film, mark it watched, rank it, rank a second one, and write a review.
 
 For a longer list to rank against, [Prepare a demo account](docs/setup.md#4-prepare-a-demo-account) fills an account with 10 ranked films and a review (it needs access to the Supabase dashboard). The [setup guide](docs/setup.md#run-the-app) has the full demo script, troubleshooting (for example a red screen about `EXPO_PUBLIC_SUPABASE_URL`), and how to point the app at your own Supabase project.
 
